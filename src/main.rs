@@ -1,6 +1,4 @@
-mod game;
-
-use game::player::Player;
+use kingdom_kards::game::player::*;
 
 fn main() {
     let player_one = Player::new();
