@@ -6,7 +6,8 @@ mod tests {
 
     #[test]
     fn player_initialization() {
-        let mut player = Player::new();
+        let mut player = Player::new(String::from("John Smith"));
+        assert_eq!(player.get_name(), "John Smith");
         assert_eq!(player.get_points(), 100);
         assert_eq!(player.get_deck_size(), 52 - 5);
         assert_eq!(player.get_hand_size(), 5);

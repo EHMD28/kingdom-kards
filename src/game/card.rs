@@ -82,6 +82,14 @@ impl Card {
         Self { suit, value }
     }
 
+    pub fn get_suit(&self) -> Suit {
+        self.suit
+    }
+
+    pub fn get_value(&self) -> Value {
+        self.value
+    }
+
     pub fn get_color(&self) -> Color {
         match self.suit {
             Suit::Spades | Suit::Clubs => Color::Black,

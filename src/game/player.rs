@@ -1,29 +1,39 @@
 use crate::game::card::{Card, Suit, Value};
 
-use rand::thread_rng;
 use rand::seq::SliceRandom;
+use rand::thread_rng;
+
+use super::card::Color;
 
 pub struct Player {
+    name: String,
     hand: Vec<Card>,
     deck: Vec<Card>,
-    points: u16
+    discard_pile: Vec<Card>,
+    points: u16,
 }
 
 impl Player {
-    pub fn new() -> Self {
+    pub fn new(name: String) -> Self {
         let mut player = Player {
+            name,
             hand: Vec::new(),
             deck: Vec::new(),
-            points: 100
+            discard_pile: Vec::new(),
+            points: 100,
         };
 
-        Player::init_deck(&mut player);        
+        Player::init_deck(&mut player);
 
         Player::shuffle_deck(&mut player);
-        
+
         player.draw_ntimes(5);
-        
+
         player
+    }
+
+    pub fn get_name(&self) -> &str {
+        self.name.as_str()
     }
 
     pub fn get_points(&self) -> u16 {
@@ -71,16 +81,45 @@ impl Player {
             Some(value) => self.hand.push(value),
         }
     }
-    
+
     pub fn draw_ntimes(&mut self, n: u8) {
         for _ in 0..n {
             self.draw_card();
         }
     }
 
+    pub fn play_card(&mut self, pos: u8) {
+        if pos >= self.hand.len() as u8 {
+            panic!("Can't access index of hand");
+        }
+
+        let card = self.hand.get(pos as usize).unwrap();
+
+        match card.get_value() {
+            Value::King => todo!(),
+            Value::Queen => todo!(),
+            Value::Jack => todo!(),
+            Value::Two
+            | Value::Three
+            | Value::Four
+            | Value::Five
+            | Value::Six
+            | Value::Seven
+            | Value::Eight
+            | Value::Nine
+            | Value::Ten => {
+                todo!()
+            }
+            Value::Ace => match card.get_color() {
+                Color::Red => todo!(),
+                Color::Black => todo!(),
+            },
+        }
+    }
+
     pub fn _print_deck(&self) {
         for card in &self.deck {
-            card.print_self();            
+            card.print_self();
         }
     }
 
@@ -90,4 +129,9 @@ impl Player {
         }
     }
 
+    pub fn _print_self(&self) {
+        println!("Player Name: {}", self.name);
+        println!("Points: {}", self.points);
+        self._print_hand();
+    }
 }
