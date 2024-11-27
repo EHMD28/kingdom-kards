@@ -1,3 +1,5 @@
+use std::panic;
+
 use crate::game::card::{Card, Suit, Value};
 
 use rand::seq::SliceRandom;
@@ -44,6 +46,15 @@ impl Player {
         self.hand.len() as u8
     }
 
+    pub fn get_card_from_hand(&self, n: u8) -> &Card {
+        if n >= self.get_hand_size() {
+            panic!("Invalid index of hand");
+        }
+
+        self.hand.get(n as usize).unwrap()
+    }
+
+    /* TODO: change to non-static method */
     fn init_deck(player: &mut Player) {
         for suit in [Suit::Spades, Suit::Clubs, Suit::Hearts, Suit::Diamonds] {
             for value in [
@@ -66,6 +77,7 @@ impl Player {
         }
     }
 
+    /* TODO: change to non-static method */
     fn shuffle_deck(player: &mut Player) {
         player.deck.shuffle(&mut thread_rng());
     }
@@ -117,15 +129,30 @@ impl Player {
         }
     }
 
+    pub fn play_king(&self, attachment: u16, target: &mut Player) {
+        target.points -= 10 + attachment;
+    }
+
+    pub fn play_queen(&self, attachment: u16, target: &mut Player) {
+        target.points += 10 + attachment;
+    }
+
     pub fn _print_deck(&self) {
         for card in &self.deck {
-            card.print_self();
+            card._print_self();
         }
     }
 
     pub fn _print_hand(&self) {
+        for (i, card) in self.hand.iter().enumerate() {
+            print!("{}. ", i + 1);
+            card._print_self();
+        }
+    }
+
+    pub fn _print_hand_unicode(&self) {
         for card in &self.hand {
-            card.print_self();
+            card._print_self_unicode();
         }
     }
 

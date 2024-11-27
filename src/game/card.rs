@@ -18,7 +18,7 @@ impl Stringable for Suit {
             Suit::Hearts => "Hearts",
             Suit::Diamonds => "Diamonds",
         }
-    } 
+    }
 }
 
 #[derive(Clone, Copy)]
@@ -77,6 +77,11 @@ pub struct Card {
     pub value: Value,
 }
 
+/* used for coloring the cards as Unicode */
+const COLOR_BLACK: &str = "\x1b[47;30m";
+const COLOR_RED: &str = "\x1b[47;31m";
+const COLOR_RESET: &str = "\x1b[0m";
+
 impl Card {
     pub fn new(suit: Suit, value: Value) -> Self {
         Self { suit, value }
@@ -97,9 +102,88 @@ impl Card {
         }
     }
 
-    pub fn print_self(&self) {
-        println!("{} {} of {}", self.get_color().to_string(),
-                                self.value.to_string(),
-                                self.suit.to_string());
+    pub fn to_unicode(&self) -> &str {
+        match self.suit {
+            Suit::Spades => match self.value {
+                Value::Ace => "🂡",
+                Value::Two => "🂢",
+                Value::Three => "🂣",
+                Value::Four => "🂤",
+                Value::Five => "🂥",
+                Value::Six => "🂦",
+                Value::Seven => "🂧",
+                Value::Eight => "🂨",
+                Value::Nine => "🂩",
+                Value::Ten => "🂪",
+                Value::Jack => "🂫",
+                Value::Queen => "🂭",
+                Value::King => "🂮",
+            },
+            Suit::Clubs => match self.value {
+                Value::Ace => "🃑",
+                Value::Two => "🃒",
+                Value::Three => "🃓",
+                Value::Four => "🃔",
+                Value::Five => "🃕",
+                Value::Six => "🃖",
+                Value::Seven => "🃗",
+                Value::Eight => "🃘",
+                Value::Nine => "🃙",
+                Value::Ten => "🃚",
+                Value::Jack => "🃛",
+                Value::Queen => "🃝",
+                Value::King => "🃞",
+            },
+            Suit::Hearts => match self.value {
+                Value::Ace => "🂱",
+                Value::Two => "🂲",
+                Value::Three => "🂳",
+                Value::Four => "🂴",
+                Value::Five => "🂵",
+                Value::Six => "🂶",
+                Value::Seven => "🂷",
+                Value::Eight => "🂸",
+                Value::Nine => "🂹",
+                Value::Ten => "🂺",
+                Value::Jack => "🂻",
+                Value::Queen => "🂽",
+                Value::King => "🂾",
+            },
+            Suit::Diamonds => match self.value {
+                Value::Ace => "🃁",
+                Value::Two => "🃂",
+                Value::Three => "🃃",
+                Value::Four => "🃄",
+                Value::Five => "🃅",
+                Value::Six => "🃆",
+                Value::Seven => "🃇",
+                Value::Eight => "🃈",
+                Value::Nine => "🃉",
+                Value::Ten => "🃊",
+                Value::Jack => "🃋",
+                Value::Queen => "🃍",
+                Value::King => "🃎",
+            },
+        }
+    }
+
+    pub fn _print_self(&self) {
+        println!(
+            "{} {} of {}",
+            self.get_color().to_string(),
+            self.value.to_string(),
+            self.suit.to_string()
+        );
+    }
+
+    pub fn _print_self_unicode(&self) {
+        match self.get_color() {
+            Color::Black => {
+                print!("{COLOR_BLACK}{} {COLOR_RESET}", self.to_unicode());
+            }
+            Color::Red => {
+                print!("{COLOR_RED}{} {COLOR_RESET}", self.to_unicode());
+            }
+        }
     }
 }
