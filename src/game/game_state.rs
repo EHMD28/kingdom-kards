@@ -27,6 +27,10 @@ impl GameState {
         self.players.get(self.current_player).unwrap()
     }
 
+    pub fn remove_lost_players(&mut self) {
+        self.players.retain(|p| p.get_points() != 0);
+    }
+
     pub fn _print_players(&self) {
         for player in self.players.iter() {
             player._print_self();

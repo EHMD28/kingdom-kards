@@ -1,3 +1,4 @@
+use std::cmp::max;
 use std::panic;
 
 use crate::game::card::{Card, Suit, Value};
@@ -25,10 +26,8 @@ impl Player {
             points: 100,
         };
 
-        Player::init_deck(&mut player);
-
-        Player::shuffle_deck(&mut player);
-
+        player.init_deck();
+        player.shuffle_deck();
         player.draw_ntimes(5);
 
         player
@@ -54,8 +53,7 @@ impl Player {
         self.hand.get(n as usize).unwrap()
     }
 
-    /* TODO: change to non-static method */
-    fn init_deck(player: &mut Player) {
+    fn init_deck(&mut self) {
         for suit in [Suit::Spades, Suit::Clubs, Suit::Hearts, Suit::Diamonds] {
             for value in [
                 Value::Ace,
@@ -72,14 +70,13 @@ impl Player {
                 Value::Queen,
                 Value::King,
             ] {
-                player.deck.push(Card::new(suit, value));
+                self.deck.push(Card::new(suit, value));
             }
         }
     }
 
-    /* TODO: change to non-static method */
-    fn shuffle_deck(player: &mut Player) {
-        player.deck.shuffle(&mut thread_rng());
+    fn shuffle_deck(&mut self) {
+        self.deck.shuffle(&mut thread_rng());
     }
 
     pub fn get_deck_size(&self) -> u16 {
@@ -129,11 +126,13 @@ impl Player {
         }
     }
 
-    pub fn play_king(&self, attachment: u16, target: &mut Player) {
-        target.points -= 10 + attachment;
+    pub fn play_king(attachment: u16, target: &mut Player) {
+        let damage = 10 + attachment;
+        let new_points = target.get_points() as i16 - damage as i16;
+        target.points = max(new_points, 0) as u16;
     }
 
-    pub fn play_queen(&self, attachment: u16, target: &mut Player) {
+    pub fn play_queen(attachment: u16, target: &mut Player) {
         target.points += 10 + attachment;
     }
 
