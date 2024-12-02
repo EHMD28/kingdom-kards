@@ -1,4 +1,10 @@
 /// Returns a list of available Kingdom Kards servers.
-fn find_servers() {}
+pub fn find_servers() {
+    println!("Finding servers...");
+}
 
-fn connect() {}
+pub fn choose_server() -> &'static str {
+    ""
+}
+
+pub fn connect_to_server() {}

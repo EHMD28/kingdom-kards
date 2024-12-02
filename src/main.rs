@@ -1,18 +1,16 @@
-// use kingdom_kards::game::game_state::GameState;
-// use kingdom_kards::game::player::*;
-use kingdom_kards::utils::choose_mode;
+use kingdom_kards::server::client::{connect_to_server, find_servers};
+use kingdom_kards::server::host::start_server;
+use kingdom_kards::server::utils::{choose_mode, Mode};
 
 fn main() {
-    choose_mode();
+    let mode = choose_mode();
 
-    // let mut player_one = Player::new(String::from("John Smith"));
-    // let player_two = Player::new(String::from("Jane Doe"));
-    // let mut g_state = GameState::new();
-
-    // println!("Player One Points: {}", player_one.get_points());
-    // Player::play_king(100, &mut player_one);
-    // println!("Player One Points: {}", player_one.get_points());
-
-    // g_state.add_player(player_one);
-    // g_state.add_player(player_two);
+    match mode {
+        Mode::HostGame => {
+            start_server();
+        }
+        Mode::ConnectGame => {
+            find_servers();
+        }
+    }
 }
