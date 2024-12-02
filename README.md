@@ -10,8 +10,8 @@ connect "Host a Game" or "Join a Game".
 ```
 Starting Kingdom Kards...
 
-1. Host a Game
-2. Start a Game
+1. Host a game
+2. Start a game
 
 Choose an option: 
 ```

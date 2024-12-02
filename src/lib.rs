@@ -1,5 +1,6 @@
 pub mod game;
 pub mod server;
+pub mod utils;
 
 #[cfg(test)]
 mod tests {
