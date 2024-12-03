@@ -1,3 +1,7 @@
+use crate::server::action::Action;
+use crate::server::action::Actions;
+use crate::server::action::ToAction;
+
 trait Stringable {
     fn to_string(self) -> &'static str;
 }
@@ -185,5 +189,12 @@ impl Card {
                 print!("{COLOR_RED}{} {COLOR_RESET}", self.to_unicode());
             }
         }
+    }
+}
+
+impl ToAction for Card {
+    fn to_action(&self) -> Action {
+        /* format: ACT {SYMBOL} {ATTACHMENT?} {FROM_PLAYER_NAME} {TO_PLAYER_NAME} */
+        Action(Actions::None)
     }
 }
