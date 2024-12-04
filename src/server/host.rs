@@ -1,3 +1,6 @@
+//! This module contains a set of functions for creating a server and
+//! handling clients.
+
 use std::{io::Write, net::TcpListener, thread};
 
 /// Starts instance of Kingdom Kards server.

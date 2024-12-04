@@ -1,4 +1,4 @@
-//! This crate contains the Player struct and methods for interacting
+//! This module contains the Player struct and methods for interacting
 //! with and manipulating the Player struct.
 
 use std::cmp::max;

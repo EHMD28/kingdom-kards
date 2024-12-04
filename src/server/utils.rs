@@ -1,3 +1,7 @@
+//! This module contains a set of standard utilities for use with this crate.
+//! For the most part, this includes functions that accept and validate user
+//! input.  
+
 use std::io::{self, Write};
 
 pub enum Mode {

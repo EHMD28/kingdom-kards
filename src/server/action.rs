@@ -1,4 +1,4 @@
-//! This crate is responsible for converting between actions for use with the
+//! This module is responsible for converting between actions for use with the
 //! game engine and actions as they are used by the server. Actions are used
 //! for communicating between client and server. Actions are transmitted as
 //! strings which can then be turned back into Action structs.
