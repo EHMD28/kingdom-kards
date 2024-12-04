@@ -1,6 +1,9 @@
+//! The Card type is responsible for holding all of the data related to a specific
+//! playing card, as well as methods for creating and getting information from the
+//! playing cards.
+
 use crate::server::action::Action;
-use crate::server::action::Actions;
-use crate::server::action::ToAction;
+use crate::server::action::IsAction;
 
 trait Stringable {
     fn to_string(self) -> &'static str;
@@ -192,9 +195,15 @@ impl Card {
     }
 }
 
-impl ToAction for Card {
-    fn to_action(&self) -> Action {
-        /* format: ACT {SYMBOL} {ATTACHMENT?} {FROM_PLAYER_NAME} {TO_PLAYER_NAME} */
-        Action(Actions::None)
+impl IsAction for Card {
+    fn to_action(&self, attachment: u16, from_player: &str, to_player: &str) -> Action {
+        let action_type = Action::card_to_action_type(self);
+
+        Action {
+            action: action_type,
+            attachment,
+            from_player: String::from(from_player),
+            to_player: String::from(to_player),
+        }
     }
 }

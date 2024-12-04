@@ -1,3 +1,7 @@
+//! This crate contains a struct that keeps track of the current game state.
+//! This crate should only be used server side, and there should only be
+//! one instance of a GameState struct per server.
+
 use super::player::Player;
 
 pub struct GameState {
