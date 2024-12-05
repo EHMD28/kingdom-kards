@@ -15,7 +15,7 @@ pub struct Player {
     name: String,
     hand: Vec<Card>,
     deck: Vec<Card>,
-    discard_pile: Vec<Card>,
+    _discard_pile: Vec<Card>,
     points: u16,
 }
 
@@ -25,7 +25,7 @@ impl Player {
             name,
             hand: Vec::new(),
             deck: Vec::new(),
-            discard_pile: Vec::new(),
+            _discard_pile: Vec::new(),
             points: 100,
         };
 

@@ -4,6 +4,7 @@
 //! strings which can then be turned back into Action structs.
 
 use crate::game::card::{Card, Color, Value};
+use std::fmt;
 
 pub trait IsAction {
     fn to_action(&self, attachment: u16, from_player: &str, to_player: &str) -> Action;
@@ -61,7 +62,9 @@ impl Action {
             Value::King => ActionType::PlayKing,
         }
     }
+}
 
+impl fmt::Display for Action {
     /// Converts from an action to a string which is then sent to the server.
     /// The format of the string is: `ACT {SYMBOL} {ATTACHMENT} "{FROM_PLAYER}" "{TO_PLAYER}"`.
     ///
@@ -72,10 +75,10 @@ impl Action {
     /// the sake of simplicity, Numbers are treated as a type with their value as an attachment.
     ///
     /// `{FROM_PLAYER}` and `{TO_PLAYER}` are the names of the respective players as strings
-    pub fn to_string(&self) -> String {
-        /* format: "ACT {SYMBOL} {ATTACHMENT} {FROM_PLAYER} {TO_PLAYER}" */
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let symbol = ActionType::to_symbol(&self.action);
-        format!(
+        write!(
+            f,
             "ACT {} {} \"{}\" \"{}\"",
             symbol, self.attachment, self.from_player, self.to_player
         )
