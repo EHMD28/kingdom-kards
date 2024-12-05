@@ -11,24 +11,11 @@ pub enum Mode {
 
 /// Prompt player to choose whether to start server or connect to server.
 pub fn choose_mode() -> Mode {
-    let stdin = io::stdin();
-    let input = &mut String::new();
-
-    println!("Starting Kingdom Kards...\n");
-
     println!("1. Host a game");
     println!("2. Connect to game\n");
 
     loop {
-        print!("Choose an Option: ");
-        io::stdout().flush().expect("Couldn't flush stdout");
-
-        input.clear();
-        stdin.read_line(input).expect("unable to read input");
-
-        if input.trim().is_empty() {
-            continue;
-        }
+        let input = get_input("Choose an option [1 or 2]: ");
 
         let input = input.trim().get(0..1).unwrap();
 
@@ -40,4 +27,17 @@ pub fn choose_mode() -> Mode {
             println!("Invalid input, try again");
         }
     }
+}
+
+pub fn get_input(prompt: &str) -> String {
+    let stdin = io::stdin();
+    let input = &mut String::new();
+
+    print!("{prompt}");
+    io::stdout().flush().expect("couldn't flush stdout");
+
+    input.clear();
+    stdin.read_line(input).expect("unable to read input");
+
+    input.trim().to_string()
 }
