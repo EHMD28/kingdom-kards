@@ -1,4 +1,4 @@
-use kingdom_kards::server::client::find_servers;
+use kingdom_kards::server::client::{connect_to_server, find_servers};
 use kingdom_kards::server::host::start_server;
 use kingdom_kards::server::utils::{choose_mode, Mode};
 
@@ -11,6 +11,7 @@ fn main() {
         }
         Mode::ConnectGame => {
             find_servers();
+            connect_to_server("127.0.0.1:5464");
         }
     }
 }
