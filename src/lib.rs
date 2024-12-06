@@ -7,11 +7,8 @@ mod tests {
     use std::str::FromStr;
 
     use crate::{
-        game::{
-            card::{Card, Suit, Value},
-            player::*,
-        },
-        server::action::{Action, ActionType, ToAction},
+        game::player::*,
+        server::action::{Action, ActionType},
     };
 
     #[test]
