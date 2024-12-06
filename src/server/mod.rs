@@ -1,9 +1,9 @@
-use std::fmt;
-
 pub mod action;
 pub mod client;
 pub mod host;
 pub mod utils;
+
+use std::fmt;
 
 pub enum ServerError {
     NoError,

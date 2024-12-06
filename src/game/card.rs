@@ -3,7 +3,7 @@
 //! playing cards.
 
 use crate::server::action::Action;
-use crate::server::action::IsAction;
+use crate::server::action::ToAction;
 
 trait Stringable {
     fn to_string(self) -> &'static str;
@@ -195,7 +195,7 @@ impl Card {
     }
 }
 
-impl IsAction for Card {
+impl ToAction for Card {
     fn to_action(&self, attachment: u16, from_player: &str, to_player: &str) -> Action {
         let action_type = Action::card_to_action_type(self);
 

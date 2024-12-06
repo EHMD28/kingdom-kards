@@ -9,7 +9,7 @@ pub fn start_server() {
     let _join_code = 1234;
     let port = "127.0.0.1:5464".to_string();
     let listener = TcpListener::bind(port).expect("Failed to bind to port 127.0.0.1:5464");
-    println!("Starting server | Join Code {_join_code}");
+    println!("Starting server with join code: {_join_code}");
 
     for stream in listener.incoming() {
         let mut stream = stream.unwrap();
