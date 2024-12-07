@@ -3,7 +3,7 @@ use std::net::TcpStream;
 use std::thread;
 use std::time::Duration;
 
-use kingdom_kards::server::client::connect_to_server;
+use kingdom_kards::server::client::{choose_player_name, connect_to_server};
 use kingdom_kards::server::host::start_server;
 use kingdom_kards::server::utils::{choose_mode, get_input, Mode};
 use kingdom_kards::utils::clear_screen;
@@ -19,8 +19,13 @@ fn main() {
             start_server();
         }
         Mode::ConnectGame => {
-            if let Some(stream) = try_connect() {
-                todo!()
+            if let Some(mut stream) = try_connect() {
+                loop {
+                    if let Ok(name) = choose_player_name() {
+                        let _ = stream.write(name.as_bytes()).unwrap();
+                        break;
+                    }
+                }
             }
         }
     }
