@@ -3,3 +3,4 @@
 - [ ] Add server side game state
 - [ ] Add client side game state
 - [ ] Implement gameplay loop
+- [ ] Add join code generation 
