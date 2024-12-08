@@ -1,0 +1,5 @@
+- [ ] Add other actions
+- [ ] Add server side name authentification
+- [ ] Add server side game state
+- [ ] Add client side game state
+- [ ] Implement gameplay loop
