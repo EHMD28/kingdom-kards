@@ -10,6 +10,7 @@ pub trait ToAction {
     fn to_action(&self, attachment: u16, from_player: &str, to_player: &str) -> Action;
 }
 
+/// This enum contains each possible type of action that the server can handle.
 #[derive(Debug, PartialEq, PartialOrd)]
 pub enum ActionType {
     None,
@@ -19,9 +20,15 @@ pub enum ActionType {
     PlayJack,
     PlayQueen,
     PlayKing,
+    TurnStart,
+    TurnEnd,
+    GetDetails,
 }
 
 impl ActionType {
+    /// ## Panics
+    ///
+    /// This function will panic if supplied an `ActionType::None` value.
     pub fn to_symbol(&self) -> &str {
         match self {
             ActionType::None => panic!("Invalid conversion from type to symbol"),
@@ -31,11 +38,18 @@ impl ActionType {
             ActionType::PlayJack => "J",
             ActionType::PlayQueen => "Q",
             ActionType::PlayKing => "K",
+            ActionType::TurnStart => "S",
+            ActionType::TurnEnd => "E",
+            ActionType::GetDetails => "D",
         }
     }
 
     /// Converts from a one character string to ActionType enum.
     ///
+    /// ## Panics
+    ///
+    /// This function will panic if it recieves a symbol that cannot be
+    /// converted to an ActionType;
     pub fn symbol_to_type(symbol: &str) -> ActionType {
         match symbol {
             "K" => ActionType::PlayKing,
@@ -44,6 +58,9 @@ impl ActionType {
             "N" => ActionType::PlayNumber,
             "R" => ActionType::PlayRedAce,
             "B" => ActionType::PlayBlackAce,
+            "S" => ActionType::TurnStart,
+            "E" => ActionType::TurnEnd,
+            "D" => ActionType::GetDetails,
             _ => {
                 panic!("Cannot convert symbol to type");
             }

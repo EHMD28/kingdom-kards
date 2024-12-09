@@ -4,8 +4,8 @@ use std::thread;
 use std::time::Duration;
 
 use kingdom_kards::server::client::{choose_player_name, connect_to_server};
-use kingdom_kards::server::host::start_server;
-use kingdom_kards::server::utils::{choose_mode, get_input, Mode};
+use kingdom_kards::server::host::ServerInstance;
+use kingdom_kards::server::utils::{choose_mode, get_input, get_response, Mode};
 use kingdom_kards::utils::clear_screen;
 
 fn main() {
@@ -16,13 +16,27 @@ fn main() {
 
     match mode {
         Mode::HostGame => {
-            start_server();
+            let server = ServerInstance::create();
+            server.start();
         }
         Mode::ConnectGame => {
             if let Some(mut stream) = try_connect() {
                 loop {
                     if let Ok(name) = choose_player_name() {
-                        let _ = stream.write(name.as_bytes()).unwrap();
+                        let message = format!("JOIN,{name}");
+                        let _ = stream.write(message.as_bytes()).unwrap();
+                        thread::sleep(Duration::from_millis(500));
+
+                        // LEFT OFF HERE
+                        let response = get_response(&mut stream);
+
+                        // name was rejected
+                        if response == "REJECT" {
+                            continue;
+                        } else {
+                            println!("Sucessfully joined server");
+                        }
+
                         break;
                     }
                 }

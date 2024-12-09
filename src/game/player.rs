@@ -13,10 +13,10 @@ use super::card::Color;
 
 pub struct Player {
     name: String,
+    points: u16,
     hand: Vec<Card>,
     deck: Vec<Card>,
     _discard_pile: Vec<Card>,
-    points: u16,
 }
 
 impl Player {

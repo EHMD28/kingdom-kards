@@ -2,7 +2,12 @@
 //! For the most part, this includes functions that accept and validate user
 //! input.  
 
-use std::io::{self, Write};
+use std::{
+    io::{self, Read, Write},
+    net::TcpStream,
+    thread,
+    time::Duration,
+};
 
 pub enum Mode {
     HostGame,
@@ -40,4 +45,22 @@ pub fn get_input(prompt: &str) -> String {
     stdin.read_line(input).expect("unable to read input");
 
     input.trim().to_string()
+}
+
+pub fn is_zeroed(buf: &[u8]) -> bool {
+    *buf == [0u8; 512]
+}
+
+pub fn get_response(stream: &mut TcpStream) -> String {
+    let mut buffer = [0u8; 512];
+
+    let _ = stream.read(&mut buffer).unwrap();
+
+    while is_zeroed(&buffer) {
+        let _ = stream.read(&mut buffer).unwrap();
+        thread::sleep(Duration::from_millis(500));
+    }
+
+    let response = String::from_utf8_lossy(&buffer);
+    response.to_string()
 }

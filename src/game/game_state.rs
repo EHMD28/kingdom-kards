@@ -4,8 +4,32 @@
 
 use super::player::Player;
 
+pub struct PlayerDetails {
+    name: String,
+    points: u16,
+}
+
+impl PlayerDetails {
+    pub fn get_name(&self) -> &str {
+        &self.name
+    }
+
+    pub fn get_points(&self) -> u16 {
+        self.points
+    }
+}
+
+impl From<Player> for PlayerDetails {
+    fn from(value: Player) -> Self {
+        Self {
+            name: String::from(value.get_name()),
+            points: value.get_points(),
+        }
+    }
+}
+
 pub struct GameState {
-    players: Vec<Player>,
+    players: Vec<PlayerDetails>,
     current_player: usize,
 }
 
@@ -18,8 +42,21 @@ impl GameState {
         }
     }
 
-    pub fn add_player(&mut self, p: Player) {
+    pub fn add_player(&mut self, p: PlayerDetails) {
         self.players.push(p);
+    }
+
+    pub fn get_all_players(&self) -> &Vec<PlayerDetails> {
+        &self.players
+    }
+
+    pub fn get_player(&self, pos: usize) -> &PlayerDetails {
+        let num_players = 0..self.players.len();
+        if !num_players.contains(&pos) {
+            panic!("Trying to access invalid player index");
+        }
+
+        self.players.get(pos).unwrap()
     }
 
     pub fn move_next_player(&mut self) {
@@ -27,18 +64,17 @@ impl GameState {
         self.current_player = (self.current_player + 1) % (num_players);
     }
 
-    pub fn get_current_player(&self) -> &Player {
-        self.players.get(self.current_player).unwrap()
-    }
+    // pub fn get_current_player(&self) -> & {
+    // }
 
-    pub fn remove_lost_players(&mut self) {
-        self.players.retain(|p| p.get_points() != 0);
-    }
+    // pub fn remove_lost_players(&mut self) {
+    //     self.players.retain(|p| p.get_points() != 0);
+    // }
 
-    pub fn _print_players(&self) {
-        for player in self.players.iter() {
-            player._print_self();
-            println!();
-        }
-    }
+    // pub fn _print_players(&self) {
+    //     for player in self.players.iter() {
+    //         player._print_self();
+    //         println!();
+    //     }
+    // }
 }

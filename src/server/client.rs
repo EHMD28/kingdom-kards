@@ -7,9 +7,10 @@ use crate::server::ServerError;
 
 use super::utils::get_input;
 
+pub struct ClientInstance {}
+
 pub fn connect_to_server(port: &str) -> Result<TcpStream, ServerError> {
-    if let Ok(mut stream) = TcpStream::connect(port) {
-        let _ = stream.write(b"Client Side Connection Established").unwrap();
+    if let Ok(stream) = TcpStream::connect(port) {
         println!("Connected To Server");
         Ok(stream)
     } else {
