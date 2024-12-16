@@ -62,5 +62,6 @@ pub fn get_response(stream: &mut TcpStream) -> String {
     }
 
     let response = String::from_utf8_lossy(&buffer);
-    response.to_string()
+    let response = response.trim_end_matches('\0');
+    response.trim().to_string()
 }
