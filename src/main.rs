@@ -1,6 +1,4 @@
-use kingdom_kards::server::client::{
-    choose_player_name, send_join_request, try_connect, ClientError,
-};
+use kingdom_kards::server::client::ClientInstance;
 use kingdom_kards::server::host::ServerInstance;
 use kingdom_kards::server::utils::{choose_mode, Mode};
 use kingdom_kards::utils::clear_screen;
@@ -17,23 +15,13 @@ fn main() {
             server.start();
         }
         Mode::ConnectGame => {
-            if let Some(mut stream) = try_connect() {
-                loop {
-                    match choose_player_name() {
-                        Ok(name) => {
-                            send_join_request(&mut stream, &name);
-                        }
-                        Err(err) => match err {
-                            ClientError::InvalidCharacterFound => {
-                                println!("Name cannot contain invalid character (e.g. ç or ♥)")
-                            }
-                            ClientError::CommaFound => println!("Name cannot contain a comma"),
-                        },
-                    }
-                }
-            } else {
-                todo!()
+            let mut client = ClientInstance::new();
+
+            if client.connect_to_server("127.0.0.1:5464").is_none() {
+                return; /* close application */
             }
+
+            client.choose_player_name();
         }
     }
 }

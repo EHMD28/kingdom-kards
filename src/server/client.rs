@@ -11,44 +11,35 @@ use crate::server::ServerError;
 
 use super::utils::{get_input, get_response};
 
-pub struct ClientInstance {}
-
-pub fn connect_to_server(port: &str) -> Result<TcpStream, ServerError> {
-    if let Ok(stream) = TcpStream::connect(port) {
-        println!("Connected To Server");
-        Ok(stream)
-    } else {
-        Err(ServerError::FailedToConnect(String::from(port)))
-    }
-}
-
 pub enum ClientError {
     InvalidCharacterFound,
     CommaFound,
 }
 
-pub fn choose_player_name() -> Result<String, self::ClientError> {
-    let name = get_input("Enter a user name: ");
-
-    if !name.is_ascii() {
-        Err(ClientError::InvalidCharacterFound)
-    } else if name.contains(",") {
-        Err(ClientError::CommaFound)
-    } else {
-        return Ok(name);
-    }
+pub struct ClientInstance {
+    stream: Option<TcpStream>,
+    name: Option<String>,
 }
 
-pub fn try_connect() -> Option<TcpStream> {
-    loop {
-        match connect_to_server("127.0.0.1:5464") {
-            Ok(stream) => {
-                println!("Successfully connected to server");
-                return Some(stream);
-            }
-            Err(e) => {
-                println!("{e}");
-                io::stdout().flush().expect("unable to flush stdout");
+impl ClientInstance {
+    #[allow(clippy::new_without_default)]
+    pub fn new() -> ClientInstance {
+        ClientInstance {
+            stream: None,
+            name: None,
+        }
+    }
+
+    pub fn connect_to_server(&mut self, port: &str) -> Option<()> {
+        loop {
+            if let Ok(stream) = TcpStream::connect(port) {
+                self.stream = Some(stream);
+                return Some(());
+            } else {
+                let error = ServerError::FailedToConnect(String::from(port));
+                println!("{error}");
+                io::stdout().flush().expect("Unable to flush stdout");
+
                 let input = get_input("Try again [y/n]: ").to_lowercase();
 
                 if input == "n" || input == "no" {
@@ -61,20 +52,41 @@ pub fn try_connect() -> Option<TcpStream> {
             }
         }
     }
-}
 
-pub fn send_join_request(stream: &mut TcpStream, name: &str) {
-    let message = format!("JOIN,{name}");
-    let _ = stream.write(message.as_bytes()).unwrap();
+    pub fn choose_player_name(&mut self) {
+        self.name = loop {
+            let username = get_input("Enter a username: ");
 
-    let response = get_response(stream);
+            if !username.is_ascii() {
+                println!("Error! Username contains invalid character (e.g. ç or ♥︎)");
+            } else if username.contains(",") {
+                println!("Error! Username cannot contain commas");
+            } else {
+                let response = self.send_join_request(&username);
+                /* Name was rejected by server */
+                if response.is_none() {
+                    println!("Name was rejected by server");
+                } else {
+                    break Some(username);
+                }
+            }
+        }
+    }
 
-    if response == "REJECT" {
-        todo!();
-    } else if response == "ACCEPT" {
-        println!("Successfully joined server");
-    } else {
-        println!("Recieved invalid response: \"{response}\"");
-        panic!();
+    fn send_join_request(&mut self, name: &str) -> Option<()> {
+        let message = format!("JOIN,{name}");
+        let stream = self.stream.as_mut().unwrap();
+
+        let _ = stream.write(message.as_bytes()).unwrap();
+
+        let response = get_response(stream);
+
+        if response == "REJECT" {
+            None
+        } else if response == "ACCEPT" {
+            Some(())
+        } else {
+            panic!("Invalid join response");
+        }
     }
 }
