@@ -1,8 +1,12 @@
 - [X] Add other actions
 - [ ] Add server side name authentification
-    - [ ] Recieving names
+    - [X] Recieving names
     - [ ] Validating name uniqueness
 - [ ] Add server side game state
 - [ ] Add client side game state
 - [ ] Implement gameplay loop
 - [ ] Add join code generation 
+- [ ] Add error handling
+    - [ ] Checking bytes read/written from stream
+    - [ ] Handling lost connections
+    
