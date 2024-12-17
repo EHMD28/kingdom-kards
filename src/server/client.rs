@@ -1,7 +1,6 @@
 //! This module contains a set of functions for client side commmunication
 //! with the server.
 
-use core::panic;
 use std::io::{self, Write};
 use std::net::TcpStream;
 use std::thread;
@@ -30,6 +29,15 @@ impl ClientInstance {
         }
     }
 
+    /// This function connects client instance to server at `port`. If the client is unable to
+    /// connect to the server initially, then the program will prompt the user to try again. If
+    /// they answer no, then the program will exit. If they answer yes, then the client will
+    /// attempt to connect to the server again.
+    ///
+    /// ## Returns  
+    ///
+    /// This function will return `None` if the server fails to connect. Otherwise, it will return
+    /// `Some(())`
     pub fn connect_to_server(&mut self, port: &str) -> Option<()> {
         loop {
             if let Ok(stream) = TcpStream::connect(port) {
@@ -54,7 +62,7 @@ impl ClientInstance {
     }
 
     pub fn choose_player_name(&mut self) {
-        self.name = loop {
+        let name = loop {
             let username = get_input("Enter a username: ");
 
             if !username.is_ascii() {
@@ -70,7 +78,13 @@ impl ClientInstance {
                     break Some(username);
                 }
             }
-        }
+        };
+
+        println!(
+            "Successfully joined server as \"{}\"",
+            name.as_ref().unwrap()
+        );
+        self.name = name;
     }
 
     fn send_join_request(&mut self, name: &str) -> Option<()> {
@@ -87,6 +101,12 @@ impl ClientInstance {
             Some(())
         } else {
             panic!("Invalid join response");
+        }
+    }
+
+    pub fn _wait(&self) {
+        loop {
+            thread::sleep(Duration::from_secs(1));
         }
     }
 }

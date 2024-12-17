@@ -4,12 +4,19 @@
 
 use super::player::Player;
 
+/// This is a struct for representing players server side, since it isn't necessary for the
+/// server to know which cards each player has, as long as everything is being validated server
+/// side.
 pub struct PlayerDetails {
     name: String,
     points: u16,
 }
 
 impl PlayerDetails {
+    pub fn new(name: String, points: u16) -> PlayerDetails {
+        PlayerDetails { name, points }
+    }
+
     pub fn get_name(&self) -> &str {
         &self.name
     }
@@ -64,17 +71,13 @@ impl GameState {
         self.current_player = (self.current_player + 1) % (num_players);
     }
 
-    // pub fn get_current_player(&self) -> & {
-    // }
+    pub fn is_unique_name(&self, name: &str) -> bool {
+        for player in self.players.iter() {
+            if player.get_name() == name {
+                return false;
+            }
+        }
 
-    // pub fn remove_lost_players(&mut self) {
-    //     self.players.retain(|p| p.get_points() != 0);
-    // }
-
-    // pub fn _print_players(&self) {
-    //     for player in self.players.iter() {
-    //         player._print_self();
-    //         println!();
-    //     }
-    // }
+        true
+    }
 }
