@@ -11,8 +11,9 @@ fn main() {
 
     match mode {
         Mode::HostGame => {
-            let server = ServerInstance::create();
-            ServerInstance::start(server);
+            let mut server = ServerInstance::create();
+            server.start();
+            server._wait();
         }
         Mode::ConnectGame => {
             let mut client = ClientInstance::new();
@@ -21,7 +22,7 @@ fn main() {
                 return; /* close application */
             }
 
-            client.choose_player_name();
+            // client.choose_player_name();
             client._wait();
         }
     }

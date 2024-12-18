@@ -1,14 +1,14 @@
 //! This module contains a set of functions for client side commmunication
 //! with the server.
 
-use std::io::{self, Write};
+use std::io::{self, Read, Write};
 use std::net::TcpStream;
 use std::thread;
 use std::time::Duration;
 
 use crate::server::ServerError;
 
-use super::utils::{get_input, get_response};
+use super::utils::{get_input, get_response, is_zeroed};
 
 pub enum ClientError {
     InvalidCharacterFound,
@@ -104,8 +104,13 @@ impl ClientInstance {
         }
     }
 
-    pub fn _wait(&self) {
+    pub fn _wait(&mut self) {
+        let msg = "hello".as_bytes();
+        let stream = self.stream.as_mut().unwrap();
+
         loop {
+            let _ = stream.write(msg).unwrap();
+
             thread::sleep(Duration::from_secs(1));
         }
     }

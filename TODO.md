@@ -10,3 +10,5 @@
     - [ ] Checking bytes read/written from stream
     - [ ] Handling lost connections
 - [ ] Change code from multithreaded to holding every connection in a vector
+    - [X] Accept players
+    - [ ] Respond to client
