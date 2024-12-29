@@ -4,12 +4,14 @@ pub mod utils;
 
 #[cfg(test)]
 mod tests {
+
+    use core::panic;
     use std::str::FromStr;
 
-    use crate::{
-        game::player::*,
-        server::action::{Action, ActionType},
-    };
+    use request_response::{Request, RequestType, Response, ResponseType};
+
+    use crate::game::player::*;
+    use crate::server::*;
 
     #[test]
     fn player_initialization() {
@@ -34,110 +36,52 @@ mod tests {
         assert_eq!(player_one.get_points(), 90);
     }
 
+    // #[test]
+    // fn reqest_to_str() {
+    //     todo!()
+    // }
+
     #[test]
-    fn action_to_str_conversion() {
-        assert_eq!(
-            "ACT,K,0,John Smith,Jane Doe",
-            Action::new(
-                ActionType::PlayKing,
-                0,
-                String::from("John Smith"),
-                String::from("Jane Doe")
-            )
-            .to_string()
-        );
+    fn str_to_request() {
+        let test_one = Request::from_str("REQ,NAME");
+        match test_one {
+            Ok(request) => assert_eq!(
+                request,
+                Request {
+                    request_type: RequestType::Name
+                }
+            ),
+            Err(e) => panic!("{:?}", e),
+        }
 
-        assert_eq!(
-            "ACT,K,5,John Smith,Jane Doe",
-            Action::new(
-                ActionType::PlayKing,
-                5,
-                String::from("John Smith"),
-                String::from("Jane Doe")
-            )
-            .to_string()
-        );
-
-        assert_eq!(
-            "ACT,Q,0,John Smith,Jane Doe",
-            Action::new(
-                ActionType::PlayQueen,
-                0,
-                String::from("John Smith"),
-                String::from("Jane Doe")
-            )
-            .to_string()
-        );
-
-        assert_eq!(
-            "ACT,J,0,John Smith,Jane Doe",
-            Action::new(
-                ActionType::PlayJack,
-                0,
-                String::from("John Smith"),
-                String::from("Jane Doe")
-            )
-            .to_string()
-        );
-
-        assert_eq!(
-            "ACT,N,10,John Smith,Jane Doe",
-            Action::new(
-                ActionType::PlayNumber,
-                10,
-                String::from("John Smith"),
-                String::from("Jane Doe")
-            )
-            .to_string()
-        );
-
-        assert_eq!(
-            "ACT,N,2,John Smith,Jane Doe",
-            Action::new(
-                ActionType::PlayNumber,
-                2,
-                String::from("John Smith"),
-                String::from("Jane Doe")
-            )
-            .to_string()
-        );
-
-        assert_eq!(
-            "ACT,B,0,John Smith,Jane Doe",
-            Action::new(
-                ActionType::PlayBlackAce,
-                0,
-                String::from("John Smith"),
-                String::from("Jane Doe")
-            )
-            .to_string()
-        );
-
-        assert_eq!(
-            "ACT,R,0,John Smith,Jane Doe",
-            Action::new(
-                ActionType::PlayRedAce,
-                0,
-                String::from("John Smith"),
-                String::from("Jane Doe")
-            )
-            .to_string()
-        );
+        let test_two = Request::from_str("REQ,ACT");
+        match test_two {
+            Ok(request) => assert_eq!(
+                request,
+                Request {
+                    request_type: RequestType::PlayerAction
+                }
+            ),
+            Err(e) => panic!("{:?}", e),
+        }
     }
 
+    // #[test]
+    // fn response_to_str() {
+    //     todo!()
+    // }
+
     #[test]
-    fn str_to_action_conversion() {
-        let default_action = Action::new(ActionType::None, 0, String::new(), String::new());
-        let action_str = "ACT,K,0,John Smith,Jane Doe";
-        let action = Action::from_str(action_str).unwrap_or(default_action);
-        assert_eq!(
-            action,
-            Action::new(
-                ActionType::PlayKing,
-                0,
-                String::from("John Smith"),
-                String::from("Jane Doe")
-            )
-        );
+    fn str_to_response() {
+        let test_one = Response::from_str("RES,NAME,John Smith");
+        match test_one {
+            Ok(response) => assert_eq!(
+                response,
+                Response {
+                    response_type: ResponseType::Name("John Smith".to_string())
+                }
+            ),
+            Err(e) => panic!("{:?}", e),
+        }
     }
 }

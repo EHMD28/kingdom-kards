@@ -6,9 +6,10 @@
 //! contain commas. These strings can then be deserialized into Action structs which
 //! interpereted client side.
 
-pub mod action;
+// pub mod action;
 pub mod client;
 pub mod host;
+pub mod request_response;
 pub mod utils;
 
 use std::fmt;

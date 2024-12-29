@@ -4,7 +4,7 @@
 use core::panic;
 use std::{
     fmt,
-    io::{self, Read, Write},
+    io::Read,
     net::{SocketAddr, TcpListener, TcpStream},
     str::FromStr,
     thread,

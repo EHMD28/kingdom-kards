@@ -12,3 +12,7 @@
 - [ ] Change code from multithreaded to holding every connection in a vector
     - [X] Accept players
     - [ ] Respond to client
+- [ ] Change from sending data as actions to using request/response
+    - [X] Determine format of requests/responses
+    - [ ] Formalize game loop
+    - [ ] Remove actions
