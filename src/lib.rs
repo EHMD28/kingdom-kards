@@ -8,7 +8,7 @@ mod tests {
     use core::panic;
     use std::str::FromStr;
 
-    use request_response::{Request, RequestType, Response, ResponseType};
+    use request_response::{Action, ActionType, Request, RequestType, Response, ResponseType};
 
     use crate::game::player::*;
     use crate::server::*;
@@ -36,40 +36,26 @@ mod tests {
         assert_eq!(player_one.get_points(), 90);
     }
 
-    // #[test]
-    // fn reqest_to_str() {
-    //     todo!()
-    // }
-
     #[test]
     fn str_to_request() {
         let test_one = Request::from_str("REQ,NAME");
         match test_one {
-            Ok(request) => assert_eq!(
-                request,
-                Request {
-                    request_type: RequestType::Name
-                }
-            ),
+            Ok(request) => assert_eq!(request, Request::new(RequestType::Name)),
             Err(e) => panic!("{:?}", e),
         }
 
         let test_two = Request::from_str("REQ,ACT");
         match test_two {
-            Ok(request) => assert_eq!(
-                request,
-                Request {
-                    request_type: RequestType::PlayerAction
-                }
-            ),
+            Ok(request) => assert_eq!(request, Request::new(RequestType::PlayerAction)),
             Err(e) => panic!("{:?}", e),
         }
     }
 
-    // #[test]
-    // fn response_to_str() {
-    //     todo!()
-    // }
+    #[test]
+    fn request_to_str() {
+        let test_one = Request::new(RequestType::Name).to_string();
+        assert_eq!(test_one, "REQ,NAME");
+    }
 
     #[test]
     fn str_to_response() {
@@ -77,11 +63,38 @@ mod tests {
         match test_one {
             Ok(response) => assert_eq!(
                 response,
-                Response {
-                    response_type: ResponseType::Name("John Smith".to_string())
-                }
+                Response::new(ResponseType::Name("John Smith".to_string()))
             ),
             Err(e) => panic!("{:?}", e),
         }
+
+        let test_two = Response::from_str("RES,ACT,K,10,John Smith,Jane Doe");
+        match test_two {
+            Ok(response) => assert_eq!(
+                response,
+                Response::new(ResponseType::PlayerAction(Action::new(
+                    ActionType::PlayKing,
+                    10,
+                    String::from("John Smith"),
+                    String::from("Jane Doe")
+                )))
+            ),
+            Err(e) => panic!("{:?}", e),
+        }
+    }
+
+    #[test]
+    fn response_to_str() {
+        let test_one = Response::new(ResponseType::Name("John Smith".to_string())).to_string();
+        assert_eq!(test_one, "RES,NAME,John Smith");
+
+        let test_two = Response::new(ResponseType::PlayerAction(Action::new(
+            ActionType::PlayKing,
+            10,
+            String::from("John Smith"),
+            String::from("Jane Doe"),
+        )))
+        .to_string();
+        assert_eq!(test_two, "RES,ACT,K,10,John Smith,Jane Doe");
     }
 }

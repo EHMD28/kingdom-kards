@@ -25,7 +25,17 @@ impl Display for RequestType {
 
 #[derive(PartialEq, Debug)]
 pub struct Request {
-    pub request_type: RequestType,
+    request_type: RequestType,
+}
+
+impl Request {
+    pub fn new(request_type: RequestType) -> Request {
+        Request { request_type }
+    }
+
+    pub fn request_type(&self) -> &RequestType {
+        &self.request_type
+    }
 }
 
 impl Display for Request {
@@ -75,7 +85,7 @@ impl FromStr for Request {
 }
 
 #[derive(PartialEq, Debug)]
-enum ActionType {
+pub enum ActionType {
     PlayKing,
     PlayQueen,
     PlayJack,
@@ -123,6 +133,38 @@ pub struct Action {
     to_player: String,
 }
 
+impl Action {
+    pub fn new(
+        action_type: ActionType,
+        attachment: u16,
+        from_player: String,
+        to_player: String,
+    ) -> Action {
+        Action {
+            action_type,
+            attachment,
+            from_player,
+            to_player,
+        }
+    }
+
+    pub fn action_type(&self) -> &ActionType {
+        &self.action_type
+    }
+
+    pub fn attachment(&self) -> &u16 {
+        &self.attachment
+    }
+
+    pub fn from_player(&self) -> &str {
+        &self.from_player
+    }
+
+    pub fn to_player(&self) -> &str {
+        &self.to_player
+    }
+}
+
 impl Default for Action {
     fn default() -> Self {
         Self {
@@ -145,8 +187,6 @@ impl FromStr for Action {
     type Err = ActionParseError;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
-        /* Format: {SYMBOL},{ATTACHMENT}, */
-
         let mut parts = s.split(",");
 
         if parts.clone().count() != 4 {
@@ -201,7 +241,17 @@ impl FromStr for ResponseType {
 
 #[derive(PartialEq, Debug)]
 pub struct Response {
-    pub response_type: ResponseType,
+    response_type: ResponseType,
+}
+
+impl Response {
+    pub fn new(response_type: ResponseType) -> Response {
+        Response { response_type }
+    }
+
+    pub fn response_type(&self) -> &ResponseType {
+        &self.response_type
+    }
 }
 
 impl Display for Response {
@@ -213,12 +263,12 @@ impl Display for Response {
                 "RES,ACT,{},{},{},{}",
                 action.action_type.to_symbol(),
                 action.attachment,
-                action.to_player,
-                action.from_player
+                action.from_player,
+                action.to_player
             ),
         };
 
-        write!(f, "RES,{response}")
+        write!(f, "{response}")
     }
 }
 
