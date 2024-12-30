@@ -1,88 +1,13 @@
-//! All communication between client and server is performed via `Request` and `Response` structs,
-//! which are serialized as strings for the ease of data transmission. Both requests are responses
-//! as strings is a list of comma separated values. The first value is either `REQ` or `RES`.
+use std::fmt::Display;
+use std::io::{ErrorKind, Read, Write};
+use std::net::TcpStream;
+use std::str::FromStr;
+use std::thread;
+use std::time::Duration;
 
-use std::{fmt::Display, str::FromStr};
+use crate::server::utils::is_zeroed;
 
-#[derive(PartialEq, Debug)]
-pub enum RequestType {
-    /// Format: `"REQ,NAME"`.
-    Name,
-    /// Format `"REQ,ACT"`.
-    PlayerAction,
-}
-
-impl Display for RequestType {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        let type_str = match self {
-            RequestType::Name => "NAME",
-            RequestType::PlayerAction => "ACT",
-        };
-
-        write!(f, "{type_str}")
-    }
-}
-
-#[derive(PartialEq, Debug)]
-pub struct Request {
-    request_type: RequestType,
-}
-
-impl Request {
-    pub fn new(request_type: RequestType) -> Request {
-        Request { request_type }
-    }
-
-    pub fn request_type(&self) -> &RequestType {
-        &self.request_type
-    }
-}
-
-impl Display for Request {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "REQ,{}", self.request_type)
-    }
-}
-
-#[derive(Debug)]
-pub enum RequestParseError {
-    /// Request string does not start with "REQ".
-    NotARequest,
-    /// There are two few arguments in request string.
-    InvalidNumArguments,
-    /// The type found in the request string is invalid.
-    InvalidType,
-}
-
-impl FromStr for Request {
-    type Err = RequestParseError;
-
-    fn from_str(s: &str) -> Result<Self, Self::Err> {
-        let mut parts = s.split(",");
-        let first = parts.next().unwrap();
-
-        if first != "REQ" {
-            return Err(RequestParseError::NotARequest);
-        }
-
-        /* Count should be 1 instead of 2 because first is consumed. */
-        if parts.clone().count() != 1 {
-            return Err(RequestParseError::InvalidNumArguments);
-        }
-
-        let request_type = parts.next().unwrap();
-
-        match request_type {
-            "NAME" => Ok(Request {
-                request_type: RequestType::Name,
-            }),
-            "ACT" => Ok(Request {
-                request_type: RequestType::PlayerAction,
-            }),
-            _ => Err(RequestParseError::InvalidType),
-        }
-    }
-}
+use super::ServerError;
 
 #[derive(PartialEq, Debug)]
 pub enum ActionType {
@@ -228,6 +153,17 @@ pub enum ResponseType {
     PlayerAction(Action),
 }
 
+impl Display for ResponseType {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let response_type = match self {
+            ResponseType::Name(_) => "NAME",
+            ResponseType::PlayerAction(_) => "ACT",
+        };
+
+        write!(f, "{response_type}")
+    }
+}
+
 impl FromStr for ResponseType {
     type Err = ();
     fn from_str(s: &str) -> Result<Self, Self::Err> {
@@ -331,5 +267,52 @@ impl FromStr for Response {
                 }
             }
         }
+    }
+}
+
+pub fn send_response(stream: &mut TcpStream, response: Response) -> std::io::Result<()> {
+    let response = response.to_string();
+    let response = response.as_bytes();
+    stream.write_all(response)?;
+    Ok(())
+}
+
+pub fn await_response(
+    stream: &mut TcpStream,
+    response_type: ResponseType,
+) -> Result<Response, ServerError> {
+    let mut buffer = [0u8; 512];
+
+    while is_zeroed(&buffer) {
+        if let Err(e) = stream.read(&mut buffer) {
+            if e.kind() != ErrorKind::Interrupted {
+                return Err(ServerError::IoError(e));
+            }
+        }
+
+        thread::sleep(Duration::from_millis(500));
+    }
+
+    let received = String::from_utf8_lossy(&buffer);
+    let received = received.trim_matches('\0');
+    let response = Response::from_str(received);
+
+    match response {
+        Ok(response) => {
+            if *response.response_type() != response_type {
+                Err(ServerError::ExpectedResponseType(ResponseType::Name(
+                    "".to_string(),
+                )))
+            } else {
+                Ok(response)
+            }
+        }
+        Err(err) => match err {
+            ResponseParseError::TooFewArguments => Err(ServerError::ReponseError(err)),
+            ResponseParseError::NotAResponse => Err(ServerError::ReponseError(err)),
+            ResponseParseError::InvalidType => Err(ServerError::ReponseError(err)),
+            ResponseParseError::ExpectedName => Err(ServerError::ReponseError(err)),
+            ResponseParseError::UnableToParseAction => Err(ServerError::ReponseError(err)),
+        },
     }
 }

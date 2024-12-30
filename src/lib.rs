@@ -8,10 +8,9 @@ mod tests {
     use core::panic;
     use std::str::FromStr;
 
-    use request_response::{Action, ActionType, Request, RequestType, Response, ResponseType};
-
     use crate::game::player::*;
-    use crate::server::*;
+    use crate::server::request::*;
+    use crate::server::response::*;
 
     #[test]
     fn player_initialization() {
