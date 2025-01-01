@@ -1,3 +1,6 @@
+use std::thread;
+use std::time::Duration;
+
 use kingdom_kards::server::client::ClientInstance;
 use kingdom_kards::server::host::ServerInstance;
 use kingdom_kards::server::utils::{choose_mode, Mode};
@@ -22,7 +25,7 @@ fn main() {
                 return; /* close application */
             }
 
-            // client.choose_player_name();
+            client.start();
             client._wait();
         }
     }

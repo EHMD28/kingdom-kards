@@ -34,6 +34,7 @@ pub fn choose_mode() -> Mode {
     }
 }
 
+/// Prompts the user with `prompt` and returns input (with whitespace trimmed).
 pub fn get_input(prompt: &str) -> String {
     let stdin = io::stdin();
     let input = &mut String::new();
@@ -47,21 +48,29 @@ pub fn get_input(prompt: &str) -> String {
     input.trim().to_string()
 }
 
-pub fn is_zeroed(buf: &[u8]) -> bool {
-    *buf == [0u8; 512]
+pub fn get_num_input(prompt: &str, min: i32, max: i32) -> i32 {
+    let stdin = io::stdin();
+    let mut stdout = io::stdout();
+    let input = &mut String::new();
+
+    loop {
+        print!("{prompt}");
+        stdout.flush().expect("Unable to flush stdout");
+        input.clear();
+        stdin.read_line(input).expect("Unable to read input");
+        let input = input.trim().to_owned();
+
+        let num_input = input.parse::<i32>();
+        if let Ok(n) = num_input {
+            if (n < min) || (n > max) {
+                continue;
+            } else {
+                return num_input.unwrap();
+            }
+        }
+    }
 }
 
-pub fn get_response(stream: &mut TcpStream) -> String {
-    let mut buffer = [0u8; 512];
-
-    let _ = stream.read(&mut buffer).unwrap();
-
-    while is_zeroed(&buffer) {
-        let _ = stream.read(&mut buffer).unwrap();
-        thread::sleep(Duration::from_millis(500));
-    }
-
-    let response = String::from_utf8_lossy(&buffer);
-    let response = response.trim_end_matches('\0');
-    response.trim().to_string()
+pub fn is_zeroed(buf: &[u8]) -> bool {
+    *buf == [0u8; 512]
 }

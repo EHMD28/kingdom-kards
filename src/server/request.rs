@@ -104,6 +104,7 @@ pub fn send_request(stream: &mut TcpStream, request: Request) -> std::io::Result
     let request = request.to_string();
     let request = request.as_bytes();
     stream.write_all(request)?;
+    println!("Sent request");
     Ok(())
 }
 
@@ -114,6 +115,8 @@ pub fn await_request(
     let mut buffer = [0u8; 512];
 
     while is_zeroed(&buffer) {
+        println!("Awaiting request");
+
         if let Err(e) = stream.read(&mut buffer) {
             if e.kind() != ErrorKind::Interrupted {
                 return Err(ServerError::IoError(e));
@@ -136,9 +139,9 @@ pub fn await_request(
             }
         }
         Err(err) => match err {
-            RequestParseError::NotARequest => todo!(),
-            RequestParseError::InvalidNumArguments => todo!(),
-            RequestParseError::InvalidType => todo!(),
+            RequestParseError::NotARequest
+            | RequestParseError::InvalidNumArguments
+            | RequestParseError::InvalidType => Err(ServerError::RequestError(err)),
         },
     }
 }

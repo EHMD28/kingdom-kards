@@ -6,9 +6,11 @@ use std::net::TcpStream;
 use std::thread;
 use std::time::Duration;
 
+use crate::server::utils::get_input;
 use crate::server::ServerError;
 
-use super::utils::{get_input, get_response};
+use super::request::{await_request, Request, RequestType};
+use super::response::{send_response, Response, ResponseType};
 
 pub enum ClientError {
     InvalidCharacterFound,
@@ -34,7 +36,7 @@ impl ClientInstance {
     /// they answer no, then the program will exit. If they answer yes, then the client will
     /// attempt to connect to the server again.
     ///
-    /// ## Returns  
+    /// ## Returns
     ///
     /// This function will return `None` if the server fails to connect. Otherwise, it will return
     /// `Some(())`
@@ -61,56 +63,53 @@ impl ClientInstance {
         }
     }
 
-    pub fn choose_player_name(&mut self) {
-        let name = loop {
-            let username = get_input("Enter a username: ");
-
-            if !username.is_ascii() {
-                println!("Error! Username contains invalid character (e.g. ç or ♥︎)");
-            } else if username.contains(",") {
-                println!("Error! Username cannot contain commas");
-            } else {
-                let response = self.send_join_request(&username);
-                /* Name was rejected by server */
-                if response.is_none() {
-                    println!("Name was rejected by server");
-                } else {
-                    break Some(username);
-                }
-            }
-        };
-
-        println!(
-            "Successfully joined server as \"{}\"",
-            name.as_ref().unwrap()
-        );
-        self.name = name;
+    pub fn start(&mut self) {
+        self.choose_player_name();
     }
 
-    fn send_join_request(&mut self, name: &str) -> Option<()> {
-        let message = format!("JOIN,{name}");
+    pub fn choose_player_name(&mut self) {
         let stream = self.stream.as_mut().unwrap();
+        let request = await_request(stream, RequestType::Name);
 
-        let _ = stream.write(message.as_bytes()).unwrap();
+        match request {
+            Ok(request) => {
+                match request.request_type() {
+                    RequestType::Name => (),
+                    /* It should be impossible to recieve a request of the wrong type. */
+                    _ => panic!("Recieved request of incorrect type."),
+                }
+            }
+            Err(err) => {
+                eprintln!("ServerError: {err}");
+                return;
+            }
+        }
 
-        let response = get_response(stream);
-
-        if response == "REJECT" {
-            None
-        } else if response == "ACCEPT" {
-            Some(())
+        let name = get_input("Enter a username: ");
+        if !name.is_ascii() {
+            println!("Error! Username contains invalid character (e.g. ç or ♥︎).");
+        } else if name.contains(",") {
+            println!("Error! Username cannot contain commas.");
         } else {
-            panic!("Invalid join response");
+            let status = send_response(stream, Response::new(ResponseType::Name(name)));
+            if status.is_err() {
+                eprintln!("An error occured when sending NAME response");
+            }
         }
     }
 
-    pub fn _wait(&mut self) {
-        let msg = "hello".as_bytes();
+    pub fn _do_something(&mut self) {
         let stream = self.stream.as_mut().unwrap();
+        let _ = send_response(
+            stream,
+            Response::new(ResponseType::Name("John Smith".to_string())),
+        );
+    }
+
+    pub fn _wait(&mut self) {
+        println!("Client is waiting");
 
         loop {
-            let _ = stream.write(msg).unwrap();
-
             thread::sleep(Duration::from_secs(1));
         }
     }

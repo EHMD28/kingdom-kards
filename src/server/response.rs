@@ -6,6 +6,7 @@ use std::thread;
 use std::time::Duration;
 
 use crate::server::utils::is_zeroed;
+use crate::utils::variant_eq;
 
 use super::ServerError;
 
@@ -153,6 +154,15 @@ pub enum ResponseType {
     PlayerAction(Action),
 }
 
+// impl ResponseType {
+//     pub fn types_match(&self, other: ResponseType) {
+//         match self {
+//             ResponseType::Name(_) => todo!(),
+//             ResponseType::PlayerAction(action) => todo!(),
+//         }
+//     }
+// }
+
 impl Display for ResponseType {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let response_type = match self {
@@ -274,6 +284,7 @@ pub fn send_response(stream: &mut TcpStream, response: Response) -> std::io::Res
     let response = response.to_string();
     let response = response.as_bytes();
     stream.write_all(response)?;
+    println!("Sent response");
     Ok(())
 }
 
@@ -284,6 +295,8 @@ pub fn await_response(
     let mut buffer = [0u8; 512];
 
     while is_zeroed(&buffer) {
+        println!("Awaiting response");
+
         if let Err(e) = stream.read(&mut buffer) {
             if e.kind() != ErrorKind::Interrupted {
                 return Err(ServerError::IoError(e));
@@ -299,20 +312,14 @@ pub fn await_response(
 
     match response {
         Ok(response) => {
-            if *response.response_type() != response_type {
+            if !variant_eq(response.response_type(), &response_type) {
                 Err(ServerError::ExpectedResponseType(ResponseType::Name(
-                    "".to_string(),
+                    String::default(),
                 )))
             } else {
                 Ok(response)
             }
         }
-        Err(err) => match err {
-            ResponseParseError::TooFewArguments => Err(ServerError::ReponseError(err)),
-            ResponseParseError::NotAResponse => Err(ServerError::ReponseError(err)),
-            ResponseParseError::InvalidType => Err(ServerError::ReponseError(err)),
-            ResponseParseError::ExpectedName => Err(ServerError::ReponseError(err)),
-            ResponseParseError::UnableToParseAction => Err(ServerError::ReponseError(err)),
-        },
+        Err(err) => Err(ServerError::ReponseError(err)),
     }
 }

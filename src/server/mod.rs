@@ -19,12 +19,17 @@ use request::{RequestParseError, RequestType};
 use response::{ResponseParseError, ResponseType};
 
 pub enum ServerError {
-    NoError,
+    /// Failed to connect to server at port.
     FailedToConnect(String),
+    /// Expected a request of a different type.
     ExpectedRequestType(RequestType),
+    /// Expected a response of a different type.
     ExpectedResponseType(ResponseType),
+    /// Encounted a request parsing error.
     RequestError(RequestParseError),
+    /// Encountered a response parsing error.
     ReponseError(ResponseParseError),
+    /// Encountered a standard io::Error.
     IoError(io::Error),
 }
 
@@ -32,7 +37,6 @@ impl fmt::Display for ServerError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             ServerError::FailedToConnect(msg) => write!(f, "Failed to connect to {msg}"),
-            ServerError::NoError => write!(f, "No error"),
             ServerError::RequestError(err) => write!(f, "Request error: {err:?}"),
             ServerError::ReponseError(err) => write!(f, "Response error: {err:?}"),
             ServerError::IoError(err) => write!(f, "IO Error: {err:?}"),
