@@ -1,7 +1,7 @@
 # Kingdom Kards Rules
 
 ## General
-Each player has their own deck of 52 standard player cards. At the start of the
+Each player has their own deck of 52 standard playing cards. At the start of the
 game, each player will draw five cards from their deck. These cards are the 
 starting hand. Each player also starts with 100 points. If a player's points
 reach zero at any point, then that player will be eliminated.

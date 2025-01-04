@@ -5,19 +5,19 @@ cards. You can find a full list of rules in [Rules.md](Rules.md)
 
 ## Usage
 When `kingdom-kards` is first started, the user will be prompted to either
-connect "Host a Game" or "Join a Game".
+connect "Host a Game" or "Join a game".
 
 ```
 Starting Kingdom Kards...
 
 1. Host a game
-2. Connect to a game
+2. Join a game
 
 Choose an option: 
 ```
 
-If the user chooses to host a game, then they a locally hosted server will 
-spawn with an join code. This join code can be used by other players on the 
+If the user chooses to host a game, then a locally hosted server will 
+started with a join code. This join code can be used by other players on the 
 same network to connect to the locally hosted server. 
 
 ```
