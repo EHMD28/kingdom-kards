@@ -6,7 +6,6 @@
 //! contain commas. These strings can then be deserialized into Action structs which
 //! interpereted client side.
 
-// pub mod action;
 pub mod client;
 pub mod host;
 pub mod request;
@@ -18,6 +17,7 @@ use std::{fmt, io};
 use request::{RequestParseError, RequestType};
 use response::{ResponseParseError, ResponseType};
 
+/// This is the type used for representing server-side errors.
 pub enum ServerError {
     /// Failed to connect to server at port.
     FailedToConnect(String),
@@ -34,6 +34,9 @@ pub enum ServerError {
 }
 
 impl fmt::Display for ServerError {
+    /// When converted to strings, ServerErrors contain a descriptive message
+    /// of what the error was as well as any specific details about the error.
+    /// It does not include where the error occured.
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             ServerError::FailedToConnect(msg) => write!(f, "Failed to connect to {msg}"),

@@ -15,15 +15,20 @@ use super::ServerError;
 pub enum RequestType {
     /// Format: `"REQ,NAME"`.
     Name,
+    /// Format: `REQ,STATUS`.
+    Status,
     /// Format `"REQ,ACT"`.
     PlayerAction,
 }
 
 impl Display for RequestType {
+    /// Used for converting a request type to a string for the purposes
+    /// of serialization.
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let type_str = match self {
             RequestType::Name => "NAME",
             RequestType::PlayerAction => "ACT",
+            RequestType::Status => "STATUS",
         };
 
         write!(f, "{type_str}")
@@ -40,10 +45,12 @@ pub struct Request {
 }
 
 impl Request {
+    /// Creates a new `Request` of type `request_type`.
     pub fn new(request_type: RequestType) -> Request {
         Request { request_type }
     }
 
+    /// Returns a reference to the `RequestType` of self.
     pub fn request_type(&self) -> &RequestType {
         &self.request_type
     }
@@ -73,6 +80,10 @@ pub enum RequestParseError {
 impl FromStr for Request {
     type Err = RequestParseError;
 
+    /// Converts from a string to a `Request`. This function will
+    /// return `Err(RequestParseError)` if request string is not properly
+    /// formatted, including information about what specifically went wrong
+    /// when parsing the string.
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         let mut parts = s.split(",");
         let first = parts.next().unwrap();
@@ -95,19 +106,27 @@ impl FromStr for Request {
             "ACT" => Ok(Request {
                 request_type: RequestType::PlayerAction,
             }),
+            "STATUS" => Ok(Request {
+                request_type: RequestType::Status,
+            }),
             _ => Err(RequestParseError::InvalidType),
         }
     }
 }
 
+/// Sends `request` over stream as a string.
 pub fn send_request(stream: &mut TcpStream, request: Request) -> std::io::Result<()> {
+    let request_type = request.request_type();
     let request = request.to_string();
     let request = request.as_bytes();
     stream.write_all(request)?;
-    println!("Sent request");
+    stream.flush()?;
+    println!("Sent request of type {}", request_type);
     Ok(())
 }
 
+/// Blocks the current thread until a `Request` is received. If the request
+/// received is of the wrong type, then this function will return an error.
 pub fn await_request(
     stream: &mut TcpStream,
     request_type: RequestType,
@@ -115,7 +134,7 @@ pub fn await_request(
     let mut buffer = [0u8; 512];
 
     while is_zeroed(&buffer) {
-        println!("Awaiting request");
+        println!("Awaiting request of type {request_type}");
 
         if let Err(e) = stream.read(&mut buffer) {
             if e.kind() != ErrorKind::Interrupted {
@@ -128,6 +147,7 @@ pub fn await_request(
 
     let received = String::from_utf8_lossy(&buffer);
     let received = received.trim_matches('\0');
+    println!("Received {received}");
     let request = Request::from_str(received);
 
     match request {
@@ -138,10 +158,6 @@ pub fn await_request(
                 Ok(request)
             }
         }
-        Err(err) => match err {
-            RequestParseError::NotARequest
-            | RequestParseError::InvalidNumArguments
-            | RequestParseError::InvalidType => Err(ServerError::RequestError(err)),
-        },
+        Err(err) => Err(ServerError::RequestError(err)),
     }
 }

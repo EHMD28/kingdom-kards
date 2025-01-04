@@ -7,18 +7,11 @@ use std::{
     time::Duration,
 };
 
-use crate::{
-    game::{
-        game_state::{GameState, PlayerDetails},
-        player::Player,
-    },
-    server::utils::{get_input, get_num_input},
-};
+use crate::game::game_state::{GameState, PlayerDetails};
 
 use super::{
-    request::{send_request, Request, RequestType},
-    response::{await_response, Response, ResponseType},
-    ServerError,
+    request::{await_request, send_request, Request, RequestType},
+    response::{await_response, send_response, Response, ResponseType, StatusType},
 };
 
 pub struct ServerInstance {
@@ -43,10 +36,12 @@ impl ServerInstance {
         }
     }
 
+    /// Returns a reference to the member `game_state` of this struct.
     pub fn game_state(&self) -> &GameState {
         &self.game_state
     }
 
+    /// Returns a mutable ference to the member `game_state` of this struct.
     pub fn game_state_mut(&mut self) -> &mut GameState {
         &mut self.game_state
     }
@@ -70,6 +65,7 @@ impl ServerInstance {
     fn accept_players(&mut self, num_players: u8) {
         let mut num_connections = 0;
 
+        println!("Accepting players...");
         while num_connections < num_players {
             match self.listener.accept() {
                 Ok((stream, addr)) => {
@@ -94,9 +90,38 @@ impl ServerInstance {
 
             match response {
                 Ok(response) => match response.response_type() {
-                    ResponseType::Name(name) => self
-                        .game_state
-                        .add_player(PlayerDetails::new(name.to_owned(), 100)),
+                    ResponseType::Name(name) => {
+                        let request = await_request(client, RequestType::Status);
+                        match request {
+                            Ok(request) => {
+                                if let RequestType::Status = request.request_type() {
+                                } else {
+                                    panic!("Received invalid type");
+                                }
+                            }
+                            Err(err) => eprintln!("An error occured in name_players(): {err}"),
+                        }
+
+                        if self.game_state.is_unique_name(name) {
+                            self.game_state
+                                .add_player(PlayerDetails::new(name.to_owned(), 100));
+                            let response = send_response(
+                                client,
+                                Response::new(ResponseType::Status(StatusType::Yes)),
+                            );
+                            if let Err(err) = response {
+                                eprintln!("An error occured in name_players(): {err}.");
+                            }
+                        } else {
+                            let response = send_response(
+                                client,
+                                Response::new(ResponseType::Status(StatusType::No)),
+                            );
+                            if let Err(err) = response {
+                                eprintln!("An error occured in name_players(): {err}");
+                            }
+                        }
+                    }
                     _ => panic!("Received an invalid type"),
                 },
                 Err(err) => {
@@ -111,32 +136,8 @@ impl ServerInstance {
         todo!()
     }
 
-    // fn handle_connections(&mut self) {
-    //     // TODO: implement handle_connections()
-    //     for (client, _) in self.clients.iter_mut() {
-    //         if let Err(e) = send_request(client, Request::new(RequestType::Name)) {
-    //             eprintln!("An error occured while sending request: {e}");
-    //         }
-    //         let response = await_response(client, ResponseType::Name("".to_string()));
-
-    //         match response {
-    //             Ok(response) => {
-    //                 if let ResponseType::Name(name) = response.response_type() {
-    //                     println!("Player '{name}' has joined!");
-    //                     self.game_state
-    //                         .add_player(PlayerDetails::new(name.to_string(), 100));
-    //                 }
-    //             }
-    //             Err(err) => match err {
-    //                 ServerError::ExpectedResponseType(_) | ServerError::ReponseError(_) => {
-    //                     eprintln!("{err}");
-    //                 }
-    //                 _ => eprintln!("An error occured in handle_connection()"),
-    //             },
-    //         }
-    //     }
-    // }
-
+    /// This function is for testing purposes only. It blocks the main thread in an
+    /// infinite loop to prevent the program from immediately exiting.
     pub fn _wait(&self) {
         println!("Server is waiting");
 

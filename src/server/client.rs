@@ -9,20 +9,25 @@ use std::time::Duration;
 use crate::server::utils::get_input;
 use crate::server::ServerError;
 
-use super::request::{await_request, Request, RequestType};
-use super::response::{send_response, Response, ResponseType};
+use super::request::{await_request, send_request, Request, RequestType};
+use super::response::{self, await_response, send_response, Response, ResponseType, StatusType};
 
+/// This is the type used for representing client-side errors.
 pub enum ClientError {
     InvalidCharacterFound,
     CommaFound,
 }
 
+/// This is the type used for representing a single client instance.
+/// There should only be one `ClientInstance` per running process of
+/// `kingdom-kards`.
 pub struct ClientInstance {
     stream: Option<TcpStream>,
     name: Option<String>,
 }
 
 impl ClientInstance {
+    /// Creates a new client instance with parameters uninitialized.
     #[allow(clippy::new_without_default)]
     pub fn new() -> ClientInstance {
         ClientInstance {
@@ -47,7 +52,7 @@ impl ClientInstance {
                 return Some(());
             } else {
                 let error = ServerError::FailedToConnect(String::from(port));
-                println!("{error}");
+                eprintln!("{error}");
                 io::stdout().flush().expect("Unable to flush stdout");
 
                 let input = get_input("Try again [y/n]: ").to_lowercase();
@@ -63,14 +68,29 @@ impl ClientInstance {
         }
     }
 
+    /// Starts the the gameplay loop client side. First, client must choose a username,
+    /// then, they will start the actual game. `connect_to_server()` must be called before
+    /// this function is called.
+    ///
+    /// # Panics
+    ///
+    /// This function will panic if there is no connection to the server
+    /// (i.e. `connect_to_server()`) was not called or it failed.
     pub fn start(&mut self) {
         self.choose_player_name();
     }
 
+    /// This function is used to initiate communcation with the server so the
+    /// player can choose a unique username.
+    ///
+    /// # Panics
+    ///
+    /// This function will panic if an invalid type is received from the server,
+    /// but that should be impossible because `await_request()` and `await_response()`
+    /// both check what type is received.
     pub fn choose_player_name(&mut self) {
         let stream = self.stream.as_mut().unwrap();
         let request = await_request(stream, RequestType::Name);
-
         match request {
             Ok(request) => {
                 match request.request_type() {
@@ -95,18 +115,32 @@ impl ClientInstance {
             if status.is_err() {
                 eprintln!("An error occured when sending NAME response");
             }
+
+            let status = send_request(stream, Request::new(RequestType::Status));
+            if let Err(err) = status {
+                eprintln!("An error occured in choose_player_name(): {err}");
+            }
+
+            let response = await_response(stream, ResponseType::Status(StatusType::No));
+            match response {
+                Ok(response) => {
+                    if let ResponseType::Status(status) = response.response_type() {
+                        match status {
+                            StatusType::Yes => println!("Name was accepted by server."),
+                            StatusType::No => println!("Name was rejected by server."),
+                        }
+                    } else {
+                        panic!("Received response of invalid type.");
+                    }
+                }
+                Err(err) => eprintln!("An error occured in choose_player_name(): {err}"),
+            }
         }
     }
 
-    pub fn _do_something(&mut self) {
-        let stream = self.stream.as_mut().unwrap();
-        let _ = send_response(
-            stream,
-            Response::new(ResponseType::Name("John Smith".to_string())),
-        );
-    }
-
-    pub fn _wait(&mut self) {
+    /// This function is for testing purposes only. It blocks the main thread in an
+    /// infinite loop to prevent the program from immediately exiting.
+    pub fn _wait(&self) {
         println!("Client is waiting");
 
         loop {
