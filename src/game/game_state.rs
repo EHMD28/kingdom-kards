@@ -2,6 +2,8 @@
 //! The GameState struct should only be used server side, and there should only
 //! be one instance of a GameState struct per server.
 
+use std::fmt::Display;
+
 use super::player::Player;
 
 /// This is a struct for representing players server side, since it isn't necessary for the
@@ -17,12 +19,18 @@ impl PlayerDetails {
         PlayerDetails { name, points }
     }
 
-    pub fn get_name(&self) -> &str {
+    pub fn name(&self) -> &str {
         &self.name
     }
 
-    pub fn get_points(&self) -> u16 {
+    pub fn points(&self) -> u16 {
         self.points
+    }
+}
+
+impl Display for PlayerDetails {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "Name: {} | Points: {}", self.name(), self.points())
     }
 }
 
@@ -50,6 +58,7 @@ impl GameState {
     }
 
     pub fn add_player(&mut self, p: PlayerDetails) {
+        println!("Added player: {p}");
         self.players.push(p);
     }
 
@@ -73,7 +82,7 @@ impl GameState {
 
     pub fn is_unique_name(&self, name: &str) -> bool {
         for player in self.players.iter() {
-            if player.get_name() == name {
+            if player.name() == name {
                 return false;
             }
         }

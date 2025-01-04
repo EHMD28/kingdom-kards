@@ -17,3 +17,6 @@
     - [ ] Formalize game loop
     - [X] Remove actions
 - [ ] Add rustdoc comments
+    - [ ] game module
+    - [X] server module
+- [X] Add tests for new Status type

@@ -48,12 +48,22 @@ mod tests {
             Ok(request) => assert_eq!(request, Request::new(RequestType::PlayerAction)),
             Err(e) => panic!("{:?}", e),
         }
+
+        let test_three = Request::from_str("REQ,STATUS");
+        match test_three {
+            Ok(request) => assert_eq!(request, Request::new(RequestType::Status)),
+            Err(e) => panic!("{e:?}"),
+        };
     }
 
     #[test]
     fn request_to_str() {
         let test_one = Request::new(RequestType::Name).to_string();
         assert_eq!(test_one, "REQ,NAME");
+        let test_two = Request::new(RequestType::PlayerAction).to_string();
+        assert_eq!(test_two, "REQ,ACT");
+        let test_three = Request::new(RequestType::Status).to_string();
+        assert_eq!(test_three, "REQ,STATUS");
     }
 
     #[test]
@@ -80,6 +90,15 @@ mod tests {
             ),
             Err(e) => panic!("{:?}", e),
         }
+
+        let test_three = Response::from_str("RES,STATUS,Y");
+        match test_three {
+            Ok(response) => assert_eq!(
+                response,
+                Response::new(ResponseType::Status(StatusType::Yes))
+            ),
+            Err(e) => panic!("{e:?}"),
+        }
     }
 
     #[test]
@@ -95,5 +114,8 @@ mod tests {
         )))
         .to_string();
         assert_eq!(test_two, "RES,ACT,K,10,John Smith,Jane Doe");
+
+        let test_three = Response::new(ResponseType::Status(StatusType::Yes)).to_string();
+        assert_eq!(test_three, "RES,STATUS,Y");
     }
 }
