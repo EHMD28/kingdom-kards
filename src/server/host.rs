@@ -7,11 +7,17 @@ use std::{
     time::Duration,
 };
 
-use crate::game::game_state::{GameState, PlayerDetails};
+use crate::{
+    game::game_state::{GameState, PlayerDetails},
+    utils::variant_eq,
+};
 
 use super::{
-    request::{await_request, send_request, Request, RequestType},
-    response::{await_response, send_response, Response, ResponseType, StatusType},
+    request::{Request, RequestType, NAME_REQUEST, STATUS_REQUEST},
+    response::{
+        ResponseType, NAME_RESPONSE, STATUS_RESPONSE, STATUS_RESPONSE_NO, STATUS_RESPONSE_YES,
+    },
+    StreamHandler,
 };
 
 pub struct ServerInstance {
@@ -39,11 +45,6 @@ impl ServerInstance {
     /// Returns a reference to the member `game_state` of this struct.
     pub fn game_state(&self) -> &GameState {
         &self.game_state
-    }
-
-    /// Returns a mutable ference to the member `game_state` of this struct.
-    pub fn game_state_mut(&mut self) -> &mut GameState {
-        &mut self.game_state
     }
 
     /// Starts up server operations. First, the server accepts the number
@@ -83,50 +84,45 @@ impl ServerInstance {
     /// Prompts every user to enter a username and verifies that each username is unique.
     fn name_players(&mut self) {
         for (client, _) in self.clients.iter_mut() {
-            if let Err(e) = send_request(client, Request::new(RequestType::Name)) {
+            let client_handler = &mut StreamHandler::new(client);
+            if let Err(e) = client_handler.send_request(NAME_REQUEST) {
                 eprintln!("An error occured while sending request: {e}");
             }
-            let response = await_response(client, ResponseType::Name(String::default()));
 
-            match response {
-                Ok(response) => match response.response_type() {
-                    ResponseType::Name(name) => {
-                        let request = await_request(client, RequestType::Status);
-                        match request {
-                            Ok(request) => {
-                                if let RequestType::Status = request.request_type() {
-                                } else {
-                                    panic!("Received invalid type");
-                                }
-                            }
-                            Err(err) => eprintln!("An error occured in name_players(): {err}"),
-                        }
-
-                        if self.game_state.is_unique_name(name) {
-                            self.game_state
-                                .add_player(PlayerDetails::new(name.to_owned(), 100));
-                            let response = send_response(
-                                client,
-                                Response::new(ResponseType::Status(StatusType::Yes)),
-                            );
-                            if let Err(err) = response {
-                                eprintln!("An error occured in name_players(): {err}.");
-                            }
-                        } else {
-                            let response = send_response(
-                                client,
-                                Response::new(ResponseType::Status(StatusType::No)),
-                            );
-                            if let Err(err) = response {
-                                eprintln!("An error occured in name_players(): {err}");
-                            }
-                        }
+            let name_response = client_handler.await_response(NAME_RESPONSE);
+            let name = match name_response {
+                Ok(response) => {
+                    if let ResponseType::Name(name) = response.response_type() {
+                        name.as_ref().unwrap().to_owned()
+                    } else {
+                        unreachable!("Received response of incorrect type");
                     }
-                    _ => panic!("Received an invalid type"),
-                },
+                }
                 Err(err) => {
                     eprintln!("An error occured in name_players(): {err}");
+                    String::new()
                 }
+            };
+
+            let status_request = client_handler.await_request(STATUS_REQUEST);
+            match status_request {
+                Ok(request) => {
+                    if variant_eq(request.request_type(), &RequestType::Status) {
+                        if self.game_state.is_unique_name(&name) {
+                            let new_player = PlayerDetails::new(name, 100);
+                            self.game_state.add_player(new_player);
+
+                            if let Err(err) = client_handler.send_response(STATUS_RESPONSE_YES) {
+                                eprintln!("An error occured in name_players(): {err}");
+                            }
+                        } else if let Err(err) = client_handler.send_response(STATUS_RESPONSE_NO) {
+                            eprintln!("An error occured in name_players(): {err}");
+                        }
+                    } else {
+                        unreachable!("Received an invalid type");
+                    }
+                }
+                Err(err) => eprintln!("An error occured in name_players(): {err}"),
             }
         }
     }

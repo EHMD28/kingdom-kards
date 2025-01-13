@@ -15,33 +15,32 @@ pub fn choose_mode() -> Mode {
     println!("1. Host a game");
     println!("2. Join a game\n");
 
-    loop {
-        let input = get_input("Choose an option [1 or 2]: ");
+    let input = get_num_input("Choose an option [1 or 2]: ", 1, 2);
 
-        let input = input.trim().get(0..1).unwrap();
-
-        if input == "1" {
-            return Mode::HostGame;
-        } else if input == "2" {
-            return Mode::ConnectGame;
-        } else {
-            println!("Invalid input, try again");
-        }
+    match input {
+        1 => Mode::HostGame,
+        2 => Mode::ConnectGame,
+        /* get_num_input() ensures that num is between 1 and 2 */
+        _ => panic!("Invalid mode chosen."),
     }
 }
 
 /// Prompts the user with `prompt` and returns input (with whitespace trimmed).
-pub fn get_input(prompt: &str) -> String {
-    let stdin = io::stdin();
+pub fn get_input(prompt: &str, max_len: usize) -> String {
     let input = &mut String::new();
 
-    print!("{prompt}");
-    io::stdout().flush().expect("couldn't flush stdout");
+    loop {
+        print!("{prompt}");
+        io::stdout().flush().expect("couldn't flush stdout");
 
-    input.clear();
-    stdin.read_line(input).expect("unable to read input");
+        input.clear();
+        io::stdin().read_line(input).expect("unable to read input");
+        let input = input.trim().to_string();
 
-    input.trim().to_string()
+        if input.len() < max_len {
+            return input;
+        }
+    }
 }
 
 /// Prompts the user to enter a number. This function will keep prompting
@@ -64,13 +63,18 @@ pub fn get_num_input(prompt: &str, min: i32, max: i32) -> i32 {
             if (n < min) || (n > max) {
                 continue;
             } else {
-                return num_input.unwrap();
+                return n;
             }
         }
     }
 }
 
-/// Checks if all values in a 512-byte buffer are zeroed.
-pub fn is_zeroed(buf: &[u8]) -> bool {
-    *buf == [0u8; 512]
+/// Removes both `\n` and `\r\n` from the end of a string.
+pub fn remove_newline(s: &mut String) {
+    if let Some('\n') = s.chars().last() {
+        s.pop();
+        if let Some('\r') = s.chars().last() {
+            s.pop();
+        }
+    }
 }

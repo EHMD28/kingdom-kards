@@ -1,14 +1,8 @@
 use std::fmt::Display;
-use std::io::{ErrorKind, Read, Write};
+use std::io::{BufRead, BufReader, Read, Write};
+use std::mem::zeroed;
 use std::net::TcpStream;
 use std::str::FromStr;
-use std::thread;
-use std::time::Duration;
-
-use crate::server::utils::is_zeroed;
-use crate::utils::variant_eq;
-
-use super::ServerError;
 
 /// Used for asking the server whether an operation is valid or not.
 /// `Yes` means the operation is fine, and `No` means the operation
@@ -194,13 +188,25 @@ impl FromStr for Action {
 #[derive(PartialEq, Debug)]
 pub enum ResponseType {
     /// Format: `RES,NAME,{NAME}`.
-    Name(String),
+    Name(Option<String>),
     /// Format: `RES,STATUS,{Y or N}`.
-    Status(StatusType),
+    Status(Option<StatusType>),
     /// Format: `RES,ACT,{SYMBOL},{ATTATCHMENT},{FROM_PLAYER},{TO_PLAYER}`.
     /// Types of actions are `K(ing), Q(ueen), J(ack), N(umber), B(lack Ace), R(ed Ace),
     /// (Turn) S(tart), (Turn) E(nd)`.
-    PlayerAction(Action),
+    PlayerAction(Option<Action>),
+}
+
+impl ToOwned for ResponseType {
+    type Owned = ResponseType;
+
+    fn to_owned(&self) -> Self::Owned {
+        match self {
+            ResponseType::Name(_) => ResponseType::Name(None),
+            ResponseType::Status(_) => ResponseType::Status(None),
+            ResponseType::PlayerAction(_) => ResponseType::PlayerAction(None),
+        }
+    }
 }
 
 impl Display for ResponseType {
@@ -224,9 +230,9 @@ impl FromStr for ResponseType {
     /// `ResponseType` is whatever the "default" value is for each variant.
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         match s {
-            "NAME" => Ok(ResponseType::Name(String::default())),
-            "ACT" => Ok(ResponseType::PlayerAction(Action::default())),
-            "STATUS" => Ok(ResponseType::Status(StatusType::No)),
+            "NAME" => Ok(ResponseType::Name(None)),
+            "ACT" => Ok(ResponseType::PlayerAction(None)),
+            "STATUS" => Ok(ResponseType::Status(None)),
             _ => Err(()),
         }
     }
@@ -242,7 +248,7 @@ pub struct Response {
 
 impl Response {
     /// Creates a new `Response` of type `response_type`.
-    pub fn new(response_type: ResponseType) -> Response {
+    pub const fn new(response_type: ResponseType) -> Response {
         Response { response_type }
     }
 
@@ -256,15 +262,20 @@ impl Display for Response {
     /// Format: `RES,{RESPONSE_TYPE},{...ARGUMENTS}`.
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let response = match &self.response_type {
-            ResponseType::Name(name) => format!("RES,NAME,{name}"),
-            ResponseType::PlayerAction(action) => format!(
-                "RES,ACT,{},{},{},{}",
-                action.action_type.to_symbol(),
-                action.attachment,
-                action.from_player,
-                action.to_player
-            ),
-            ResponseType::Status(status) => format!("RES,STATUS,{status}"),
+            ResponseType::Name(name) => format!("RES,NAME,{}", name.as_ref().unwrap()),
+            ResponseType::PlayerAction(action) => {
+                let action = action.as_ref().unwrap();
+                format!(
+                    "RES,ACT,{},{},{},{}",
+                    action.action_type.to_symbol(),
+                    action.attachment,
+                    action.from_player,
+                    action.to_player
+                )
+            }
+            ResponseType::Status(status) => {
+                format!("RES,STATUS,{}", status.as_ref().unwrap())
+            }
         };
 
         write!(f, "{response}")
@@ -309,7 +320,7 @@ impl FromStr for Response {
             ResponseType::Name(_) => {
                 if let Some(name) = parts.next() {
                     Ok(Response {
-                        response_type: ResponseType::Name(name.to_string()),
+                        response_type: ResponseType::Name(Some(name.to_string())),
                     })
                 } else {
                     Err(ResponseParseError::ExpectedName)
@@ -322,7 +333,7 @@ impl FromStr for Response {
 
                 match action {
                     Ok(action) => Ok(Response {
-                        response_type: ResponseType::PlayerAction(action),
+                        response_type: ResponseType::PlayerAction(Some(action)),
                     }),
                     Err(_) => Err(ResponseParseError::UnableToParseAction),
                 }
@@ -331,7 +342,7 @@ impl FromStr for Response {
                 if let Some(status) = parts.next() {
                     let status = StatusType::from_str(status);
                     match status {
-                        Ok(status) => Ok(Response::new(ResponseType::Status(status))),
+                        Ok(status) => Ok(Response::new(ResponseType::Status(Some(status)))),
                         Err(_) => Err(ResponseParseError::ExpectedStatus),
                     }
                 } else {
@@ -342,52 +353,95 @@ impl FromStr for Response {
     }
 }
 
-/// Sends `response` as string over `stream`.
-pub fn send_response(stream: &mut TcpStream, response: Response) -> std::io::Result<()> {
-    let response_type = response.response_type();
-    let response = response.to_string();
-    let response = response.as_bytes();
-    stream.write_all(response)?;
-    stream.flush()?;
-    println!("Sent response of type {response_type}");
-    Ok(())
-}
+/// Constant for simplyfying awaiting and sending responses.
+pub const NAME_RESPONSE: Response = Response::new(ResponseType::Name(None));
+/// Constant for simplyfying awaiting and sending responses.
+pub const ACTION_RESPONSE: Response = Response::new(ResponseType::PlayerAction(None));
+/// Constant for simplyfying awaiting and sending responses.
+pub const STATUS_RESPONSE: Response = Response::new(ResponseType::Status(None));
+/// Constant for simplyfying awaiting and sending responses.
+pub const STATUS_RESPONSE_YES: Response =
+    Response::new(ResponseType::Status(Some(StatusType::Yes)));
+/// Constant for simplyfying awaiting and sending responses.
+pub const STATUS_RESPONSE_NO: Response = Response::new(ResponseType::Status(Some(StatusType::No)));
 
-/// Blocks the current thread until a `Response` is received. If the response
-/// received is of the wrong type, then this function will return an error.
-pub fn await_response(
-    stream: &mut TcpStream,
-    response_type: ResponseType,
-) -> Result<Response, ServerError> {
-    let mut buffer = [0u8; 512];
+// /// For handling of sending responses and receiving requests.
+// pub struct ResponseHandler<'a> {
+//     reader: BufReader<&'a mut TcpStream>,
+// }
 
-    while is_zeroed(&buffer) {
-        println!("Awaiting response of type {response_type}");
+// impl ResponseHandler<'_> {
+//     pub fn new(stream: &mut TcpStream) -> ResponseHandler {
+//         ResponseHandler {
+//             reader: BufReader::new(stream),
+//         }
+//     }
 
-        if let Err(e) = stream.read(&mut buffer) {
-            if e.kind() != ErrorKind::Interrupted {
-                return Err(ServerError::IoError(e));
-            }
-        }
+//     // pub fn from_request_handler(mut request_handler: &mut RequestHandler) -> ResponseHandler {
+//     //     let mut buffer = request_handler
+//     //         .reader_mut()
+//     //         .fill_buf()
+//     //         .expect("Unable to fill buffer");
+//     //     let buf_len = buffer.len();
+//     //     buffer.consume(buf_len);
 
-        thread::sleep(Duration::from_millis(500));
-    }
+//     //     let stream = request_handler.stream_mut();
+//     //     // TODO: add buffer to response_handler.
+//     //     let response_handler = ResponseHandler::new(stream);
 
-    let received = String::from_utf8_lossy(&buffer);
-    let received = received.trim_matches('\0');
-    println!("Received: {received}");
-    let response = Response::from_str(received);
+//     //     BufReader::from(BufReader::new(stream))
+//     // }
 
-    match response {
-        Ok(response) => {
-            if !variant_eq(response.response_type(), &response_type) {
-                Err(ServerError::ExpectedResponseType(ResponseType::Name(
-                    String::default(),
-                )))
-            } else {
-                Ok(response)
-            }
-        }
-        Err(err) => Err(ServerError::ReponseError(err)),
-    }
-}
+//     /// Sends `response` as string over `stream`.
+//     pub fn send_response(&mut self, response: Response) -> std::io::Result<()> {
+//         let response_type = response.response_type();
+//         let mut response = response.to_string();
+//         /* Newline is used a delimiting character to avoid requests being mangled. */
+//         response.push('\n');
+//         let response = response.as_bytes();
+//         // dbg!(response);
+//         let stream = self.reader.get_mut();
+//         stream.write_all(response)?;
+//         stream.flush()?;
+//         println!("Sent response of type {response_type}");
+//         Ok(())
+//     }
+
+//     /// Blocks the current thread until a `Request` is received. If the request
+//     /// received is of the wrong type, then this function will return an error.
+//     pub fn await_request(&mut self, request: Request) -> Result<Request, ServerError> {
+//         // todo: Fix queued requests being dropped when function exits.
+//         let request_type = request.request_type().to_owned();
+//         let received = &mut String::new();
+
+//         println!("Awaiting request of type {request_type}");
+//         println!("Buffer is empty: {}", self.reader.buffer().is_empty());
+//         // received.clear();
+//         if let Err(err) = self.reader.read_line(received) {
+//             return Err(ServerError::IoError(err));
+//         }
+//         remove_newline(received);
+
+//         println!("Received: {received}");
+//         let request = Request::from_str(received);
+
+//         match request {
+//             Ok(request) => {
+//                 if variant_eq(request.request_type(), &request_type) {
+//                     Ok(request)
+//                 } else {
+//                     Err(ServerError::ExpectedRequestType(request_type))
+//                 }
+//             }
+//             Err(err) => Err(ServerError::RequestError(err)),
+//         }
+//     }
+// }
+
+// impl From<RequestHandler<'_>> for ResponseHandler<'_> {
+//     fn from(value: RequestHandler<'_>) -> Self {
+//         let reader = *value.reader().to_owned();
+//         let reader = BufReader::from(reader);
+
+//     }
+// }

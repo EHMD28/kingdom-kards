@@ -6,11 +6,14 @@ use std::net::TcpStream;
 use std::thread;
 use std::time::Duration;
 
+use crate::server::request::{Request, NAME_REQUEST, STATUS_REQUEST};
+use crate::server::response::{Response, ResponseType, StatusType, NAME_RESPONSE, STATUS_RESPONSE};
 use crate::server::utils::get_input;
 use crate::server::ServerError;
+use crate::utils::variant_eq;
 
-use super::request::{await_request, send_request, Request, RequestType};
-use super::response::{self, await_response, send_response, Response, ResponseType, StatusType};
+use super::request::RequestType;
+use super::StreamHandler;
 
 /// This is the type used for representing client-side errors.
 pub enum ClientError {
@@ -55,7 +58,8 @@ impl ClientInstance {
                 eprintln!("{error}");
                 io::stdout().flush().expect("Unable to flush stdout");
 
-                let input = get_input("Try again [y/n]: ").to_lowercase();
+                const MAX_INPUT_LEN: usize = 5;
+                let input = get_input("Try again [y/n]: ", MAX_INPUT_LEN).to_lowercase();
 
                 if input == "n" || input == "no" {
                     println!("Okay. Closing application");
@@ -89,52 +93,60 @@ impl ClientInstance {
     /// but that should be impossible because `await_request()` and `await_response()`
     /// both check what type is received.
     pub fn choose_player_name(&mut self) {
+        // TODO: change to use `StreamHandler` instead.
         let stream = self.stream.as_mut().unwrap();
-        let request = await_request(stream, RequestType::Name);
-        match request {
-            Ok(request) => {
-                match request.request_type() {
-                    RequestType::Name => (),
-                    /* It should be impossible to recieve a request of the wrong type. */
-                    _ => panic!("Recieved request of incorrect type."),
-                }
-            }
-            Err(err) => {
-                eprintln!("ServerError: {err}");
-                return;
-            }
+        let stream_handler = &mut StreamHandler::new(stream);
+
+        let name_request = stream_handler.await_request(NAME_REQUEST);
+        match name_request {
+            Ok(request) if variant_eq(request.request_type(), &RequestType::Name) => (),
+            Err(err) => eprintln!("An error occured in choose_player_name(): {err}"),
+            _ => unreachable!("Received request of incorrect type."),
         }
 
-        let name = get_input("Enter a username: ");
-        if !name.is_ascii() {
-            println!("Error! Username contains invalid character (e.g. ç or ♥︎).");
-        } else if name.contains(",") {
-            println!("Error! Username cannot contain commas.");
-        } else {
-            let status = send_response(stream, Response::new(ResponseType::Name(name)));
-            if status.is_err() {
-                eprintln!("An error occured when sending NAME response");
+        const MAX_INPUT_LEN: usize = 25;
+        let name = loop {
+            let name = get_input("Enter a username: ", MAX_INPUT_LEN);
+            if ClientInstance::validate_name_input(&name).is_ok() {
+                break name;
             }
+        };
 
-            let status = send_request(stream, Request::new(RequestType::Status));
-            if let Err(err) = status {
-                eprintln!("An error occured in choose_player_name(): {err}");
-            }
+        let name_response = Response::new(ResponseType::Name(Some(name)));
+        if let Err(err) = stream_handler.send_response(name_response) {
+            eprintln!("An error occured in choose_player_name(): {err}");
+        }
 
-            let response = await_response(stream, ResponseType::Status(StatusType::No));
-            match response {
-                Ok(response) => {
-                    if let ResponseType::Status(status) = response.response_type() {
-                        match status {
-                            StatusType::Yes => println!("Name was accepted by server."),
-                            StatusType::No => println!("Name was rejected by server."),
-                        }
-                    } else {
-                        panic!("Received response of invalid type.");
+        if let Err(err) = stream_handler.send_request(STATUS_REQUEST) {
+            eprintln!("An error occured in choose_player_name(): {err}");
+        }
+
+        let status_response = stream_handler.await_response(STATUS_RESPONSE);
+        match status_response {
+            Ok(response) => {
+                if let ResponseType::Status(status) = response.response_type() {
+                    match status {
+                        Some(StatusType::Yes) => println!("Name was accepted by server."),
+                        Some(StatusType::No) => println!("Name was rejected by server."),
+                        None => unreachable!("Status was empty"),
                     }
+                } else {
+                    unreachable!("Received invalid response type");
                 }
-                Err(err) => eprintln!("An error occured in choose_player_name(): {err}"),
             }
+            Err(err) => eprintln!("An error occured in choose_player_name(): {err}"),
+        }
+    }
+
+    fn validate_name_input(name: &str) -> Result<(), ()> {
+        if !name.is_ascii() {
+            println!("Error! Username cannot contain invalid characters (e.g. ç or ♥︎).");
+            Err(())
+        } else if name.contains(",") {
+            println!("Error! Username cannot contain commas");
+            Err(())
+        } else {
+            Ok(())
         }
     }
 

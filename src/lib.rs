@@ -72,21 +72,22 @@ mod tests {
         match test_one {
             Ok(response) => assert_eq!(
                 response,
-                Response::new(ResponseType::Name("John Smith".to_string()))
+                Response::new(ResponseType::Name(Some("John Smith".to_string())))
             ),
             Err(e) => panic!("{:?}", e),
         }
 
         let test_two = Response::from_str("RES,ACT,K,10,John Smith,Jane Doe");
+        let test_two_action = Action::new(
+            ActionType::PlayKing,
+            10,
+            "John Smith".to_string(),
+            "Jane Doe".to_string(),
+        );
         match test_two {
             Ok(response) => assert_eq!(
                 response,
-                Response::new(ResponseType::PlayerAction(Action::new(
-                    ActionType::PlayKing,
-                    10,
-                    String::from("John Smith"),
-                    String::from("Jane Doe")
-                )))
+                Response::new(ResponseType::PlayerAction(Some(test_two_action)))
             ),
             Err(e) => panic!("{:?}", e),
         }
@@ -95,7 +96,7 @@ mod tests {
         match test_three {
             Ok(response) => assert_eq!(
                 response,
-                Response::new(ResponseType::Status(StatusType::Yes))
+                Response::new(ResponseType::Status(Some(StatusType::Yes)))
             ),
             Err(e) => panic!("{e:?}"),
         }
@@ -103,19 +104,20 @@ mod tests {
 
     #[test]
     fn response_to_str() {
-        let test_one = Response::new(ResponseType::Name("John Smith".to_string())).to_string();
+        let test_one =
+            Response::new(ResponseType::Name(Some("John Smith".to_string()))).to_string();
         assert_eq!(test_one, "RES,NAME,John Smith");
 
-        let test_two = Response::new(ResponseType::PlayerAction(Action::new(
+        let test_two_action = Action::new(
             ActionType::PlayKing,
             10,
-            String::from("John Smith"),
-            String::from("Jane Doe"),
-        )))
-        .to_string();
+            "John Smith".to_string(),
+            "Jane Doe".to_string(),
+        );
+        let test_two = Response::new(ResponseType::PlayerAction(Some(test_two_action))).to_string();
         assert_eq!(test_two, "RES,ACT,K,10,John Smith,Jane Doe");
 
-        let test_three = Response::new(ResponseType::Status(StatusType::Yes)).to_string();
+        let test_three = Response::new(ResponseType::Status(Some(StatusType::Yes))).to_string();
         assert_eq!(test_three, "RES,STATUS,Y");
     }
 }
