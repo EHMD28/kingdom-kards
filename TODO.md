@@ -7,16 +7,16 @@
 - [ ] Implement gameplay loop
 - [ ] Add join code generation 
 - [ ] Add error handling
-    - [ ] Checking bytes read/written from stream
+    - [X] Checking bytes read/written from stream
     - [ ] Handling lost connections
-- [ ] Change code from multithreaded to holding every connection in a vector
+- [X] Change code from multithreaded to holding every connection in a vector
     - [X] Accept players
-    - [ ] Respond to client
-- [ ] Change from sending data as actions to using request/response
+    - [X] Respond to client
+- [X] Change from sending data as actions to using request/response
     - [X] Determine format of requests/responses
     - [ ] Formalize game loop
     - [X] Remove actions
-- [ ] Add rustdoc comments
+- [X] Add rustdoc comments
     - [ ] game module
     - [X] server module
 - [X] Add tests for new Status type
