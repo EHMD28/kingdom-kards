@@ -7,7 +7,7 @@ use std::thread;
 use std::time::Duration;
 
 use crate::server::request::{Request, NAME_REQUEST, STATUS_REQUEST};
-use crate::server::response::{Response, ResponseType, StatusType, NAME_RESPONSE, STATUS_RESPONSE};
+use crate::server::response::{Response, ResponseType, StatusType, STATUS_RESPONSE};
 use crate::server::utils::get_input;
 use crate::server::ServerError;
 use crate::utils::variant_eq;
@@ -93,16 +93,11 @@ impl ClientInstance {
     /// but that should be impossible because `await_request()` and `await_response()`
     /// both check what type is received.
     pub fn choose_player_name(&mut self) {
-        // TODO: change to use `StreamHandler` instead.
         let stream = self.stream.as_mut().unwrap();
         let stream_handler = &mut StreamHandler::new(stream);
 
         let name_request = stream_handler.await_request(NAME_REQUEST);
-        match name_request {
-            Ok(request) if variant_eq(request.request_type(), &RequestType::Name) => (),
-            Err(err) => eprintln!("An error occured in choose_player_name(): {err}"),
-            _ => unreachable!("Received request of incorrect type."),
-        }
+        Request::validate(name_request, RequestType::Name);
 
         const MAX_INPUT_LEN: usize = 25;
         let name = loop {

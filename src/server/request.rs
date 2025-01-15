@@ -1,5 +1,9 @@
 use std::{fmt::Display, str::FromStr};
 
+use crate::utils::variant_eq;
+
+use super::ServerError;
+
 #[derive(PartialEq, Debug)]
 pub enum RequestType {
     /// Format: `"REQ,NAME"`.
@@ -54,6 +58,16 @@ impl Request {
     /// Returns a reference to the `RequestType` of self.
     pub fn request_type(&self) -> &RequestType {
         &self.request_type
+    }
+
+    /// Checks to see if there were any errors on request, unwrapping it and returing it if there
+    /// were none.
+    pub fn validate(request: Result<Request, ServerError>, request_type: RequestType) {
+        match request {
+            Ok(request) if variant_eq(request.request_type(), &request_type) => (),
+            Err(err) => eprintln!("An error occured: {err}"),
+            _ => unreachable!("Received request of incorrect type."),
+        }
     }
 }
 
@@ -121,79 +135,3 @@ pub const NAME_REQUEST: Request = Request::new(RequestType::Name);
 pub const ACTION_REQUEST: Request = Request::new(RequestType::PlayerAction);
 /// Constant for simplyfying awaiting and sending requests.
 pub const STATUS_REQUEST: Request = Request::new(RequestType::Status);
-
-// /// For handling of sending requests and receiving responses.
-// pub struct RequestHandler<'a> {
-//     reader: BufReader<&'a mut TcpStream>,
-// }
-
-// impl<'a> RequestHandler<'a> {
-//     /// Create a new request handler using stream.
-//     pub fn new(stream: &mut TcpStream) -> RequestHandler {
-//         RequestHandler {
-//             reader: BufReader::new(stream),
-//         }
-//     }
-
-//     pub fn reader(&self) -> &BufReader<&mut TcpStream> {
-//         &self.reader
-//     }
-
-//     pub fn reader_mut(&mut self) -> &'a mut BufReader<&mut TcpStream> {
-//         &mut self.reader
-//     }
-
-//     pub fn stream_mut(&mut self) -> &mut TcpStream {
-//         self.reader.get_mut()
-//     }
-
-//     /// Sends `request` over stream as a string.
-//     pub fn send_request(&mut self, request: Request) -> std::io::Result<()> {
-//         let request_type = request.request_type();
-//         let mut request = request.to_string();
-//         /* Newline is used a delimiting character to avoid requests being mangled. */
-//         request.push('\n');
-//         let request = request.as_bytes();
-//         let stream = self.reader.get_mut();
-//         stream.write_all(request)?;
-//         stream.flush()?;
-//         println!("Sent request of type {}", request_type);
-//         Ok(())
-//     }
-
-//     /// Blocks the current thread until a `Response` is received. If the response
-//     /// received is of the wrong type, then this function will return an error.
-//     pub fn await_response(&mut self, response: Response) -> Result<Response, ServerError> {
-//         let response_type = response.response_type().to_owned();
-//         let received = &mut String::new();
-
-//         println!("Awaiting response of type {response_type}");
-//         /* Using read_line() because requests/responses are separated by newline delimeter */
-//         // received.clear();
-//         if let Err(e) = self.reader.read_line(received) {
-//             return Err(ServerError::IoError(e));
-//         }
-
-//         remove_newline(received);
-
-//         println!("Received: {received}");
-//         let response = Response::from_str(received);
-
-//         match response {
-//             Ok(request) => {
-//                 if variant_eq(request.response_type(), &response_type) {
-//                     Ok(request)
-//                 } else {
-//                     Err(ServerError::ExpectedResponseType(response_type))
-//                 }
-//             }
-//             Err(err) => Err(ServerError::ReponseError(err)),
-//         }
-//     }
-// }
-
-// impl From<ResponseHandler<'_>> for RequestHandler<'_> {
-//     fn from(value: ResponseHandler) -> Self {
-//         todo!()
-//     }
-// }
