@@ -10,7 +10,7 @@ use crate::server::request::{Request, NAME_REQUEST, STATUS_REQUEST};
 use crate::server::response::{Response, ResponseType, StatusType, STATUS_RESPONSE};
 use crate::server::utils::get_input;
 use crate::server::ServerError;
-use crate::utils::variant_eq;
+use crate::utils::{perror_in_fn, variant_eq};
 
 use super::request::RequestType;
 use super::StreamHandler;
@@ -95,53 +95,86 @@ impl ClientInstance {
     pub fn choose_player_name(&mut self) {
         let stream = self.stream.as_mut().unwrap();
         let stream_handler = &mut StreamHandler::new(stream);
+        let mut is_accepted = false;
 
-        let name_request = stream_handler.await_request(NAME_REQUEST);
+        while !is_accepted {
+            ClientInstance::send_name(stream_handler);
+            is_accepted = ClientInstance::get_status(stream_handler);
+        }
+    }
+
+    /// Sends name request an awaits response, printing any errors that may
+    /// occur.
+    fn send_name(handler: &mut StreamHandler) {
+        let name_request = handler.await_request(NAME_REQUEST);
         Request::validate(name_request, RequestType::Name);
 
-        const MAX_INPUT_LEN: usize = 25;
-        let name = loop {
-            let name = get_input("Enter a username: ", MAX_INPUT_LEN);
-            if ClientInstance::validate_name_input(&name).is_ok() {
-                break name;
-            }
-        };
-
+        let name = ClientInstance::get_name_input();
         let name_response = Response::new(ResponseType::Name(Some(name)));
-        if let Err(err) = stream_handler.send_response(name_response) {
-            eprintln!("An error occured in choose_player_name(): {err}");
+        if let Err(err) = handler.send_response(name_response) {
+            perror_in_fn("choose_player_name", err);
+        }
+    }
+
+    /// Sends status requests to the server to check if the name entered is valid.
+    /// If the name is invalid, then the function will return false. Otherwise, it
+    /// will return true.
+    ///
+    /// # Panics
+    ///
+    /// This function panics if it receives any invalid types, which should
+    /// be impossible when using `send` and `await` functions.
+    fn get_status(handler: &mut StreamHandler) -> bool {
+        if let Err(err) = handler.send_request(STATUS_REQUEST) {
+            perror_in_fn("choose_player_name", err);
         }
 
-        if let Err(err) = stream_handler.send_request(STATUS_REQUEST) {
-            eprintln!("An error occured in choose_player_name(): {err}");
-        }
-
-        let status_response = stream_handler.await_response(STATUS_RESPONSE);
+        let status_response = handler.await_response(STATUS_RESPONSE);
         match status_response {
             Ok(response) => {
                 if let ResponseType::Status(status) = response.response_type() {
                     match status {
-                        Some(StatusType::Yes) => println!("Name was accepted by server."),
-                        Some(StatusType::No) => println!("Name was rejected by server."),
+                        Some(StatusType::Yes) => {
+                            println!("Name was accepted by server.");
+                            true
+                        }
+                        Some(StatusType::No) => {
+                            println!("Name was rejected by server.");
+                            false
+                        }
                         None => unreachable!("Status was empty"),
                     }
                 } else {
                     unreachable!("Received invalid response type");
                 }
             }
-            Err(err) => eprintln!("An error occured in choose_player_name(): {err}"),
+            Err(err) => {
+                perror_in_fn("choose_player_name", err);
+                false
+            }
         }
     }
 
-    fn validate_name_input(name: &str) -> Result<(), ()> {
-        if !name.is_ascii() {
-            println!("Error! Username cannot contain invalid characters (e.g. ç or ♥︎).");
-            Err(())
-        } else if name.contains(",") {
-            println!("Error! Username cannot contain commas");
-            Err(())
+    /// Prompts the user to enter a username until they enter a valid username.
+    fn get_name_input() -> String {
+        const MAX_INPUT_LEN: usize = 25;
+        loop {
+            let name = get_input("Enter a username: ", MAX_INPUT_LEN);
+            if ClientInstance::validate_name_input(&name) {
+                break name;
+            }
+        }
+    }
+
+    /// Checks to see if name is only alphabetical ASCII characters
+    fn validate_name_input(name: &str) -> bool {
+        if !name.is_ascii() || !name.chars().all(char::is_alphabetic) {
+            println!(
+                "Error! Username cannot contain special characters or numbers (e.g. 1, $, ç, ♥︎)."
+            );
+            false
         } else {
-            Ok(())
+            true
         }
     }
 

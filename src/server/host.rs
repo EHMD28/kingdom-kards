@@ -9,7 +9,7 @@ use std::{
 
 use crate::{
     game::game_state::{GameState, PlayerDetails},
-    utils::variant_eq,
+    utils::{perror_in_fn, variant_eq},
 };
 
 use super::{
@@ -85,46 +85,60 @@ impl ServerInstance {
     fn name_players(&mut self) {
         for (client, _) in self.clients.iter_mut() {
             let client_handler = &mut StreamHandler::new(client);
-            if let Err(e) = client_handler.send_request(NAME_REQUEST) {
-                eprintln!("An error occured while sending request: {e}");
-            }
+            let mut is_accepted = false;
 
-            let name_response = client_handler.await_response(NAME_RESPONSE);
-            let name = match name_response {
-                Ok(response) => {
-                    if let ResponseType::Name(name) = response.response_type() {
-                        name.as_ref().unwrap().to_owned()
-                    } else {
-                        unreachable!("Received response of incorrect type");
-                    }
-                }
-                Err(err) => {
-                    eprintln!("An error occured in name_players(): {err}");
-                    String::new()
-                }
-            };
-
-            let status_request = client_handler.await_request(STATUS_REQUEST);
-            match status_request {
-                Ok(request) => {
-                    if variant_eq(request.request_type(), &RequestType::Status) {
-                        if self.game_state.is_unique_name(&name) {
-                            let new_player = PlayerDetails::new(name, 100);
-                            self.game_state.add_player(new_player);
-
-                            if let Err(err) = client_handler.send_response(STATUS_RESPONSE_YES) {
-                                eprintln!("An error occured in name_players(): {err}");
-                            }
-                        } else if let Err(err) = client_handler.send_response(STATUS_RESPONSE_NO) {
-                            eprintln!("An error occured in name_players(): {err}");
-                        }
-                    } else {
-                        unreachable!("Received an invalid type");
-                    }
-                }
-                Err(err) => eprintln!("An error occured in name_players(): {err}"),
+            while !is_accepted {
+                let name = ServerInstance::get_name(client_handler);
+                is_accepted = ServerInstance::send_status(
+                    client_handler,
+                    &mut self.game_state,
+                    name.as_str(),
+                );
             }
         }
+    }
+
+    fn get_name(handler: &mut StreamHandler) -> String {
+        if let Err(e) = handler.send_request(NAME_REQUEST) {
+            eprintln!("An error occured while sending request: {e}");
+        }
+
+        let name_response = handler.await_response(NAME_RESPONSE);
+        let name = match name_response {
+            Ok(response) => {
+                if let ResponseType::Name(name) = response.response_type() {
+                    name.as_ref().unwrap().to_owned()
+                } else {
+                    unreachable!("Received response of incorrect type");
+                }
+            }
+            Err(err) => {
+                perror_in_fn("name_players", err);
+                String::new()
+            }
+        };
+        name
+    }
+
+    fn send_status(handler: &mut StreamHandler, game_state: &mut GameState, name: &str) -> bool {
+        let status_request = handler.await_request(STATUS_REQUEST);
+        Request::validate(status_request, RequestType::Name);
+
+        if game_state.is_unique_name(name) {
+            /* Add a new player with 100 points. */
+            let new_player = PlayerDetails::new(name.to_owned(), 100);
+            game_state.add_player(new_player);
+
+            if let Err(err) = handler.send_response(STATUS_RESPONSE_YES) {
+                perror_in_fn("ServerInstance::send_status", err);
+            }
+
+            return true;
+        } else if let Err(err) = handler.send_response(STATUS_RESPONSE_NO) {
+            perror_in_fn("ServerInstance::send_status", err);
+        }
+
+        false
     }
 
     /// Starts core gameplay loop.

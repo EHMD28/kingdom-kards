@@ -21,7 +21,7 @@ pub fn choose_mode() -> Mode {
         1 => Mode::HostGame,
         2 => Mode::ConnectGame,
         /* get_num_input() ensures that num is between 1 and 2 */
-        _ => panic!("Invalid mode chosen."),
+        _ => unreachable!("Invalid mode chosen."),
     }
 }
 

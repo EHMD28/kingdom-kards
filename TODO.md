@@ -1,7 +1,8 @@
 - [X] Add other actions
-- [ ] Add server side name authentification
+- [X] Add server side name authentification
     - [X] Recieving names
-    - [ ] Validating name uniqueness
+    - [X] Validating name uniqueness
+    - [X] Handling name rejections client-side
 - [ ] Add server side game state
 - [ ] Add client side game state
 - [ ] Implement gameplay loop
