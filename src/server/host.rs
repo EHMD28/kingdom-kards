@@ -23,7 +23,8 @@ use super::{
 pub struct ServerInstance {
     game_state: GameState,
     listener: TcpListener,
-    clients: Vec<(TcpStream, SocketAddr)>,
+    // TODO: Change to StreamHandler instead of TcpStream.
+    clients: Vec<StreamHandler>,
     join_code: String,
 }
 
@@ -54,11 +55,11 @@ impl ServerInstance {
     pub fn start(&mut self) {
         // let num_players = get_num_input("Enter number of players (min. 2, max. 6): ", 2, 6);
 
-        // TODO: change back for full application
+        // TODO: change back to `num_players` for full application
         self.accept_players(1);
+        self.reject_extra_players();
 
         println!("Starting server with join code: {}", self.join_code);
-
         self.name_players();
     }
 
@@ -69,31 +70,57 @@ impl ServerInstance {
         println!("Accepting players...");
         while num_connections < num_players {
             match self.listener.accept() {
-                Ok((stream, addr)) => {
-                    println!("New client joined from {addr}");
-                    self.clients.push((stream, addr));
+                Ok((stream, _)) => {
+                    let mut handler = StreamHandler::new(stream);
+
+                    if let Err(err) = handler.await_request(STATUS_REQUEST) {
+                        perror_in_fn("accept_players", err);
+                    }
+
+                    /* Accept player. */
+                    if let Err(err) = handler.send_response(STATUS_RESPONSE_YES) {
+                        perror_in_fn("accept_players", err);
+                    }
+
+                    self.clients.push(handler);
                     num_connections += 1;
                 }
-                Err(e) => {
-                    println!("Failed to connect. Error: {e}");
+                Err(err) => {
+                    perror_in_fn("accept_players", err);
                 }
             }
         }
     }
 
+    /// Starts a new thread that rejects all players that join
+    /// after the room is full.
+    fn reject_extra_players(&mut self) {
+        /* Once all players have joined */
+        let listener = self.listener.try_clone().unwrap();
+        thread::spawn(move || {
+            for connection in listener.incoming() {
+                let handler = &mut StreamHandler::new(connection.unwrap());
+                if let Err(err) = handler.await_request(STATUS_REQUEST) {
+                    perror_in_fn("reject_extra_players", err);
+                }
+
+                /* Reject connection. */
+                if let Err(err) = handler.send_response(STATUS_RESPONSE_NO) {
+                    perror_in_fn("reject_extra_players", err);
+                }
+            }
+        });
+    }
+
     /// Prompts every user to enter a username and verifies that each username is unique.
     fn name_players(&mut self) {
-        for (client, _) in self.clients.iter_mut() {
-            let client_handler = &mut StreamHandler::new(client);
+        for handler in self.clients.iter_mut() {
             let mut is_accepted = false;
 
             while !is_accepted {
-                let name = ServerInstance::get_name(client_handler);
-                is_accepted = ServerInstance::send_status(
-                    client_handler,
-                    &mut self.game_state,
-                    name.as_str(),
-                );
+                let name = ServerInstance::get_name(handler);
+                is_accepted =
+                    ServerInstance::send_status(handler, &mut self.game_state, name.as_str());
             }
         }
     }
@@ -122,7 +149,7 @@ impl ServerInstance {
 
     fn send_status(handler: &mut StreamHandler, game_state: &mut GameState, name: &str) -> bool {
         let status_request = handler.await_request(STATUS_REQUEST);
-        Request::validate(status_request, RequestType::Name);
+        Request::validate(status_request, RequestType::Status);
 
         if game_state.is_unique_name(name) {
             /* Add a new player with 100 points. */

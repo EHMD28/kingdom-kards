@@ -67,15 +67,15 @@ impl fmt::Display for ServerError {
 ///  requests/responses, use the `await_request` and `await_response` methods.
 /// A `send_request` should always be followed by an `await_response` (same
 /// with) `send_response` and `await_request`.
-pub struct StreamHandler<'a> {
-    reader: BufReader<&'a mut TcpStream>,
+pub struct StreamHandler {
+    reader: BufReader<TcpStream>,
 }
 
-impl StreamHandler<'_> {
+impl StreamHandler {
     /// Creates a new instance of `StreamHandler` attached to stream.
     /// Multiple `StreamHandler`s should not be attached to the same
     /// stream at the same time.
-    pub fn new(stream: &mut TcpStream) -> StreamHandler {
+    pub fn new(stream: TcpStream) -> StreamHandler {
         StreamHandler {
             reader: BufReader::new(stream),
         }

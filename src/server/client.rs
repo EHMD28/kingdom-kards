@@ -9,8 +9,7 @@ use std::time::Duration;
 use crate::server::request::{Request, NAME_REQUEST, STATUS_REQUEST};
 use crate::server::response::{Response, ResponseType, StatusType, STATUS_RESPONSE};
 use crate::server::utils::get_input;
-use crate::server::ServerError;
-use crate::utils::{perror_in_fn, variant_eq};
+use crate::utils::perror_in_fn;
 
 use super::request::RequestType;
 use super::StreamHandler;
@@ -25,7 +24,9 @@ pub enum ClientError {
 /// There should only be one `ClientInstance` per running process of
 /// `kingdom-kards`.
 pub struct ClientInstance {
-    stream: Option<TcpStream>,
+    /// `StreamHandler` for `TcpStream` connect to server.
+    handler: Option<StreamHandler>,
+    /// Name of current player.
     name: Option<String>,
 }
 
@@ -34,7 +35,7 @@ impl ClientInstance {
     #[allow(clippy::new_without_default)]
     pub fn new() -> ClientInstance {
         ClientInstance {
-            stream: None,
+            handler: None,
             name: None,
         }
     }
@@ -51,24 +52,55 @@ impl ClientInstance {
     pub fn connect_to_server(&mut self, port: &str) -> Option<()> {
         loop {
             if let Ok(stream) = TcpStream::connect(port) {
-                self.stream = Some(stream);
-                return Some(());
-            } else {
-                let error = ServerError::FailedToConnect(String::from(port));
-                eprintln!("{error}");
-                io::stdout().flush().expect("Unable to flush stdout");
-
-                const MAX_INPUT_LEN: usize = 5;
-                let input = get_input("Try again [y/n]: ", MAX_INPUT_LEN).to_lowercase();
-
-                if input == "n" || input == "no" {
-                    println!("Okay. Closing application");
-                    return None;
+                let mut handler = StreamHandler::new(stream);
+                if ClientInstance::is_room_open(&mut handler) {
+                    self.handler = Some(handler);
+                    println!("Joined Room.");
+                    break Some(());
                 } else {
-                    println!("Trying again...");
-                    thread::sleep(Duration::from_millis(500));
+                    println!("Room is full.");
+                    break None;
                 }
+            } else if !ClientInstance::try_again() {
+                return None;
+            } else {
+                thread::sleep(Duration::from_millis(500));
             }
+        }
+    }
+
+    fn is_room_open(handler: &mut StreamHandler) -> bool {
+        if let Err(err) = handler.send_request(STATUS_REQUEST) {
+            perror_in_fn("connect_to_server", err);
+        }
+
+        let status_response = handler.await_response(STATUS_RESPONSE);
+        match status_response {
+            Ok(response) => match response.response_type() {
+                ResponseType::Status(Some(StatusType::Yes)) => true,
+                ResponseType::Status(Some(StatusType::No)) => false,
+                _ => unreachable!("Received invalid type"),
+            },
+            Err(err) => {
+                perror_in_fn("connect_to_server", err);
+                false
+            }
+        }
+    }
+
+    fn try_again() -> bool {
+        println!("Failed to connect to server.");
+        io::stdout().flush().expect("Unable to flush stdout");
+
+        const MAX_INPUT_LEN: usize = 5;
+        let input = get_input("Try again [y/n]: ", MAX_INPUT_LEN).to_lowercase();
+
+        if input == "n" || input == "no" {
+            println!("Okay. Closing application");
+            false
+        } else {
+            println!("Trying again...");
+            true
         }
     }
 
@@ -93,13 +125,12 @@ impl ClientInstance {
     /// but that should be impossible because `await_request()` and `await_response()`
     /// both check what type is received.
     pub fn choose_player_name(&mut self) {
-        let stream = self.stream.as_mut().unwrap();
-        let stream_handler = &mut StreamHandler::new(stream);
         let mut is_accepted = false;
+        let handler = self.handler.as_mut().unwrap();
 
         while !is_accepted {
-            ClientInstance::send_name(stream_handler);
-            is_accepted = ClientInstance::get_status(stream_handler);
+            ClientInstance::send_name(handler);
+            is_accepted = ClientInstance::get_status(handler);
         }
     }
 
