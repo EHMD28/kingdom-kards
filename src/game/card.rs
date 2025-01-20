@@ -2,9 +2,7 @@
 //! playing card, as well as methods for creating and getting information from the
 //! playing cards.
 
-trait Stringable {
-    fn to_string(self) -> &'static str;
-}
+use std::fmt::Display;
 
 #[derive(Clone, Copy)]
 pub enum Suit {
@@ -14,14 +12,15 @@ pub enum Suit {
     Diamonds,
 }
 
-impl Stringable for Suit {
-    fn to_string(self) -> &'static str {
-        match self {
+impl Display for Suit {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let suit = match self {
             Suit::Spades => "Spades",
             Suit::Clubs => "Clubs",
             Suit::Hearts => "Hearts",
             Suit::Diamonds => "Diamonds",
-        }
+        };
+        write!(f, "{suit}")
     }
 }
 
@@ -42,9 +41,9 @@ pub enum Value {
     King,
 }
 
-impl Stringable for Value {
-    fn to_string(self) -> &'static str {
-        match self {
+impl Display for Value {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let value = match self {
             Value::Ace => "Ace",
             Value::Two => "Two",
             Value::Three => "Three",
@@ -58,7 +57,8 @@ impl Stringable for Value {
             Value::Jack => "Jack",
             Value::Queen => "Queen",
             Value::King => "King",
-        }
+        };
+        write!(f, "{value}")
     }
 }
 
@@ -67,12 +67,13 @@ pub enum Color {
     Red,
 }
 
-impl Stringable for Color {
-    fn to_string(self) -> &'static str {
-        match self {
+impl Display for Color {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let color = match self {
             Color::Black => "Black",
             Color::Red => "Red",
-        }
+        };
+        write!(f, "{color}")
     }
 }
 
@@ -172,12 +173,7 @@ impl Card {
     }
 
     pub fn _print_self(&self) {
-        println!(
-            "{} {} of {}",
-            self.get_color().to_string(),
-            self.value.to_string(),
-            self.suit.to_string()
-        );
+        println!("{} {} of {}", self.get_color(), self.value, self.suit);
     }
 
     pub fn _print_self_unicode(&self) {
@@ -191,16 +187,3 @@ impl Card {
         }
     }
 }
-
-// impl ToAction for Card {
-//     fn to_action(&self, attachment: u16, from_player: &str, to_player: &str) -> Action {
-//         let action_type = Action::card_to_action_type(self);
-
-//         Action {
-//             action: action_type,
-//             attachment,
-//             from_player: String::from(from_player),
-//             to_player: String::from(to_player),
-//         }
-//     }
-// }

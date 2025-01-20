@@ -1,5 +1,4 @@
-//! This module contains the Player struct and methods for interacting
-//! with and manipulating the Player struct.
+//! This module contains the code for handling player state client side.
 
 use std::cmp::max;
 use std::panic;
@@ -16,7 +15,7 @@ pub struct Player {
     points: u16,
     hand: Vec<Card>,
     deck: Vec<Card>,
-    _discard_pile: Vec<Card>,
+    discard_pile: Vec<Card>,
 }
 
 impl Player {
@@ -25,7 +24,7 @@ impl Player {
             name,
             hand: Vec::new(),
             deck: Vec::new(),
-            _discard_pile: Vec::new(),
+            discard_pile: Vec::new(),
             points: 100,
         };
 
