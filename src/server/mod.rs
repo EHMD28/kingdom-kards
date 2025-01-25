@@ -7,6 +7,7 @@
 //! interpereted client side.
 
 pub mod client;
+pub mod constants;
 pub mod host;
 pub mod request;
 pub mod response;
@@ -99,7 +100,6 @@ impl StreamHandler {
     /// Blocks the current thread until a `Request` is received. If the request
     /// received is of the wrong type, then this function will return an error.
     pub fn await_request(&mut self, request: Request) -> Result<Request, ServerError> {
-        // todo: Fix queued requests being dropped when function exits.
         let request_type = request.request_type().to_owned();
         let received = &mut String::new();
 

@@ -7,24 +7,29 @@ use std::{
     time::Duration,
 };
 
+use rand::{seq::SliceRandom, thread_rng};
+
 use crate::{
     game::game_state::{GameState, PlayerDetails},
+    server::constants::{STATUS_REQUEST, STATUS_RESPONSE_YES},
     utils::{perror_in_fn, variant_eq},
 };
 
 use super::{
-    request::{Request, RequestType, NAME_REQUEST, STATUS_REQUEST},
-    response::{
-        ResponseType, NAME_RESPONSE, STATUS_RESPONSE, STATUS_RESPONSE_NO, STATUS_RESPONSE_YES,
+    constants::{
+        ACTION_REQUEST, DETAILS_REQUEST, DETAILS_RESPONSE, NAME_REQUEST, NAME_RESPONSE,
+        STATUS_RESPONSE_NO,
     },
+    request::{Request, RequestType},
+    response::{Action, ActionType, Response, ResponseType},
     StreamHandler,
 };
 
 pub struct ServerInstance {
     game_state: GameState,
     listener: TcpListener,
-    // TODO: Change to StreamHandler instead of TcpStream.
     clients: Vec<StreamHandler>,
+    players: Vec<PlayerDetails>,
     join_code: String,
 }
 
@@ -34,12 +39,15 @@ impl ServerInstance {
     pub fn create() -> ServerInstance {
         let port = "127.0.0.1:5464".to_string();
         let listener = TcpListener::bind(port).expect("Failed to bind to port 127.0.0.1:5464");
+        // The maximum amount of players allowed to join a game.
+        const MAX_PLAYERS: usize = 6;
 
         ServerInstance {
             game_state: GameState::new(),
             listener,
-            clients: Vec::new(),
+            clients: Vec::with_capacity(MAX_PLAYERS),
             join_code: "1234".to_string(),
+            players: Vec::with_capacity(MAX_PLAYERS),
         }
     }
 
@@ -61,6 +69,9 @@ impl ServerInstance {
 
         println!("Starting server with join code: {}", self.join_code);
         self.name_players();
+        self.randomize_players();
+        self.get_player_details();
+        // self.start_game_loop();
     }
 
     /// Allows `num_players` clients to join, exits after all players have joined.
@@ -168,8 +179,62 @@ impl ServerInstance {
         false
     }
 
+    fn randomize_players(&mut self) {
+        self.clients.shuffle(&mut thread_rng());
+    }
+
+    fn get_player_details(&mut self) {
+        // TODO: Write client-side code for this.
+        for client in self.clients.iter_mut() {
+            if let Err(err) = client.send_request(DETAILS_REQUEST) {
+                perror_in_fn("get_player_details", err);
+            }
+
+            let player_details = client.await_response(DETAILS_RESPONSE);
+            match player_details {
+                Ok(response) => {
+                    if let ResponseType::Details(Some(details)) = response.response_type() {
+                        self.players.push(details.to_owned());
+                    } else {
+                        unreachable!();
+                    }
+                }
+                Err(err) => perror_in_fn("get_player_details", err),
+            }
+        }
+    }
+
     /// Starts core gameplay loop.
-    fn game_loop(&self) {
+    fn start_game_loop(&mut self) {
+        // Start turn
+        // Get actions (loop)
+        // End turn
+
+        self.start_turn();
+        self.start_action_loop();
+        self.game_state.move_next_player();
+
+        todo!()
+    }
+
+    fn start_turn(&mut self) {
+        let handler = self.clients.first_mut().unwrap();
+
+        todo!();
+        self.respond_all(Response::default()); // TODO: this.
+
+        todo!()
+    }
+
+    fn respond_all(&mut self, response: Response) {
+        for client in self.clients.iter_mut() {
+            if let Err(err) = client.await_request(ACTION_REQUEST) {
+                perror_in_fn("response_all", err);
+            }
+        }
+    }
+
+    fn start_action_loop(&mut self) {
         todo!()
     }
 

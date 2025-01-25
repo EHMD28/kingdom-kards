@@ -6,11 +6,14 @@ use std::net::TcpStream;
 use std::thread;
 use std::time::Duration;
 
-use crate::server::request::{Request, NAME_REQUEST, STATUS_REQUEST};
-use crate::server::response::{Response, ResponseType, StatusType, STATUS_RESPONSE};
+use crate::game::game_state::PlayerDetails;
+use crate::game::player::Player;
+use crate::server::request::Request;
+use crate::server::response::{Response, ResponseType, StatusType};
 use crate::server::utils::get_input;
 use crate::utils::perror_in_fn;
 
+use super::constants::{DETAILS_REQUEST, NAME_REQUEST, STATUS_REQUEST, STATUS_RESPONSE};
 use super::request::RequestType;
 use super::StreamHandler;
 
@@ -27,7 +30,7 @@ pub struct ClientInstance {
     /// `StreamHandler` for `TcpStream` connect to server.
     handler: Option<StreamHandler>,
     /// Name of current player.
-    name: Option<String>,
+    player: Player,
 }
 
 impl ClientInstance {
@@ -36,7 +39,7 @@ impl ClientInstance {
     pub fn new() -> ClientInstance {
         ClientInstance {
             handler: None,
-            name: None,
+            player: Player::new(),
         }
     }
 
@@ -114,6 +117,8 @@ impl ClientInstance {
     /// (i.e. `connect_to_server()`) was not called or it failed.
     pub fn start(&mut self) {
         self.choose_player_name();
+        self.send_player_details();
+        // self.start_game_loop();
     }
 
     /// This function is used to initiate communcation with the server so the
@@ -127,24 +132,28 @@ impl ClientInstance {
     pub fn choose_player_name(&mut self) {
         let mut is_accepted = false;
         let handler = self.handler.as_mut().unwrap();
+        let mut name = String::new();
 
         while !is_accepted {
-            ClientInstance::send_name(handler);
+            name = ClientInstance::send_name(handler);
             is_accepted = ClientInstance::get_status(handler);
         }
+        self.player.set_name(name);
+        println!("Joined room as {}", self.player.name());
     }
 
     /// Sends name request an awaits response, printing any errors that may
     /// occur.
-    fn send_name(handler: &mut StreamHandler) {
+    fn send_name(handler: &mut StreamHandler) -> String {
         let name_request = handler.await_request(NAME_REQUEST);
         Request::validate(name_request, RequestType::Name);
 
         let name = ClientInstance::get_name_input();
-        let name_response = Response::new(ResponseType::Name(Some(name)));
+        let name_response = Response::new(ResponseType::Name(Some(name.clone())));
         if let Err(err) = handler.send_response(name_response) {
             perror_in_fn("choose_player_name", err);
         }
+        name
     }
 
     /// Sends status requests to the server to check if the name entered is valid.
@@ -207,6 +216,27 @@ impl ClientInstance {
         } else {
             true
         }
+    }
+
+    fn send_player_details(&mut self) {
+        let handler = self.handler.as_mut().unwrap();
+
+        if let Err(err) = handler.await_request(DETAILS_REQUEST) {
+            perror_in_fn("send_player_details", err);
+        }
+
+        let name = self.player.name().to_string();
+        let points = self.player.points();
+        let details = Response::new_player_details(name, points);
+
+        if let Err(err) = handler.send_response(details) {
+            perror_in_fn("send_player_details", err);
+        }
+    }
+
+    /// Starts core gameplay loop.
+    fn start_game_loop(&mut self) {
+        todo!()
     }
 
     /// This function is for testing purposes only. It blocks the main thread in an
