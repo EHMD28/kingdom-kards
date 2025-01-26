@@ -4,6 +4,7 @@ use std::cmp::max;
 use std::panic;
 
 use crate::game::card::{Card, Suit, Value};
+use crate::server::constants::DECK_SIZE;
 
 use rand::seq::SliceRandom;
 use rand::thread_rng;
@@ -19,12 +20,13 @@ pub struct Player {
 }
 
 impl Player {
-    pub fn new(name: String) -> Self {
+    #[allow(clippy::new_without_default)]
+    pub fn new() -> Player {
         let mut player = Player {
-            name,
-            hand: Vec::new(),
-            deck: Vec::new(),
-            discard_pile: Vec::new(),
+            name: String::new(),
+            hand: Vec::with_capacity(DECK_SIZE),
+            deck: Vec::with_capacity(DECK_SIZE),
+            discard_pile: Vec::with_capacity(DECK_SIZE),
             points: 100,
         };
 
@@ -35,11 +37,31 @@ impl Player {
         player
     }
 
-    pub fn get_name(&self) -> &str {
-        self.name.as_str()
+    pub fn with_name(name: String) -> Player {
+        let mut player = Player {
+            name,
+            hand: Vec::with_capacity(DECK_SIZE),
+            deck: Vec::with_capacity(DECK_SIZE),
+            discard_pile: Vec::with_capacity(DECK_SIZE),
+            points: 100,
+        };
+
+        player.init_deck();
+        player.shuffle_deck();
+        player.draw_ntimes(5);
+
+        player
     }
 
-    pub fn get_points(&self) -> u16 {
+    pub fn name(&self) -> &str {
+        &self.name
+    }
+
+    pub fn set_name(&mut self, name: String) {
+        self.name = name;
+    }
+
+    pub fn points(&self) -> u16 {
         self.points
     }
 
@@ -130,7 +152,7 @@ impl Player {
 
     pub fn play_king(attachment: u16, target: &mut Player) {
         let damage = 10 + attachment;
-        let new_points = target.get_points() as i16 - damage as i16;
+        let new_points = target.points() as i16 - damage as i16;
         target.points = max(new_points, 0) as u16;
     }
 

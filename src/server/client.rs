@@ -13,7 +13,7 @@ use crate::server::response::{Response, ResponseType, StatusType};
 use crate::server::utils::get_input;
 use crate::utils::perror_in_fn;
 
-use super::constants::{DETAILS_REQUEST, NAME_REQUEST, STATUS_REQUEST, STATUS_RESPONSE};
+use super::constants::{MAX_USERNAME_LEN, NAME_REQUEST, STATUS_REQUEST, STATUS_RESPONSE};
 use super::request::RequestType;
 use super::StreamHandler;
 
@@ -117,7 +117,7 @@ impl ClientInstance {
     /// (i.e. `connect_to_server()`) was not called or it failed.
     pub fn start(&mut self) {
         self.choose_player_name();
-        self.send_player_details();
+        // self.send_player_details();
         // self.start_game_loop();
     }
 
@@ -197,9 +197,8 @@ impl ClientInstance {
 
     /// Prompts the user to enter a username until they enter a valid username.
     fn get_name_input() -> String {
-        const MAX_INPUT_LEN: usize = 25;
         loop {
-            let name = get_input("Enter a username: ", MAX_INPUT_LEN);
+            let name = get_input("Enter a username: ", MAX_USERNAME_LEN);
             if ClientInstance::validate_name_input(&name) {
                 break name;
             }
@@ -219,19 +218,21 @@ impl ClientInstance {
     }
 
     fn send_player_details(&mut self) {
-        let handler = self.handler.as_mut().unwrap();
+        unimplemented!()
 
-        if let Err(err) = handler.await_request(DETAILS_REQUEST) {
-            perror_in_fn("send_player_details", err);
-        }
+        // let handler = self.handler.as_mut().unwrap();
 
-        let name = self.player.name().to_string();
-        let points = self.player.points();
-        let details = Response::new_player_details(name, points);
+        // if let Err(err) = handler.await_request(DETAILS_REQUEST) {
+        //     perror_in_fn("send_player_details", err);
+        // }
 
-        if let Err(err) = handler.send_response(details) {
-            perror_in_fn("send_player_details", err);
-        }
+        // let name = self.player.name().to_string();
+        // let points = self.player.points();
+        // let details = Response::new_player_details(name, points);
+
+        // if let Err(err) = handler.send_response(details) {
+        //     perror_in_fn("send_player_details", err);
+        // }
     }
 
     /// Starts core gameplay loop.

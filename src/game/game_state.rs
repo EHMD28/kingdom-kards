@@ -4,11 +4,14 @@
 
 use std::fmt::Display;
 
+use crate::server::constants::MAX_PLAYERS;
+
 use super::player::Player;
 
 /// This is a struct for representing players server side, since it isn't necessary for the
 /// server to know which cards each player has, as long as everything is being validated server
 /// side.
+#[derive(Debug, PartialEq)]
 pub struct PlayerDetails {
     name: String,
     points: u16,
@@ -37,12 +40,21 @@ impl Display for PlayerDetails {
 impl From<Player> for PlayerDetails {
     fn from(value: Player) -> Self {
         Self {
-            name: String::from(value.get_name()),
-            points: value.get_points(),
+            name: String::from(value.name()),
+            points: value.points(),
         }
     }
 }
 
+impl ToOwned for PlayerDetails {
+    type Owned = PlayerDetails;
+
+    fn to_owned(&self) -> Self::Owned {
+        PlayerDetails::new(self.name.to_string(), self.points)
+    }
+}
+
+#[derive(Debug, PartialEq)]
 pub struct GameState {
     players: Vec<PlayerDetails>,
     current_player: usize,
@@ -52,18 +64,22 @@ impl GameState {
     #[allow(clippy::new_without_default)]
     pub fn new() -> Self {
         Self {
-            players: Vec::new(),
+            players: Vec::with_capacity(MAX_PLAYERS),
             current_player: 0,
         }
     }
 
     pub fn add_player(&mut self, p: PlayerDetails) {
-        println!("Added player: {p}");
+        // println!("Added player: {p}");
         self.players.push(p);
     }
 
-    pub fn get_all_players(&self) -> &Vec<PlayerDetails> {
+    pub fn all_players(&self) -> &Vec<PlayerDetails> {
         &self.players
+    }
+
+    pub fn num_players(&self) -> usize {
+        self.players.len()
     }
 
     pub fn get_player(&self, pos: usize) -> &PlayerDetails {
@@ -78,6 +94,13 @@ impl GameState {
     pub fn move_next_player(&mut self) {
         let num_players = self.players.len();
         self.current_player = (self.current_player + 1) % (num_players);
+    }
+
+    pub fn print_all_players(&self) {
+        for (index, player) in self.players.iter().enumerate() {
+            println!("Game State");
+            println!("\t{}. {player}", index + 1);
+        }
     }
 
     pub fn is_unique_name(&self, name: &str) -> bool {

@@ -1,8 +1,10 @@
+use core::str::Split;
 use std::fmt::Display;
 use std::io::{BufRead, Write};
 use std::str::FromStr;
 
-use crate::utils::variant_eq;
+use crate::game::game_state::{GameState, PlayerDetails};
+use crate::utils::{perror_in_fn, variant_eq};
 
 use super::ServerError;
 
@@ -197,6 +199,8 @@ pub enum ResponseType {
     /// Types of actions are `K(ing), Q(ueen), J(ack), N(umber), B(lack Ace), R(ed Ace),
     /// (Turn) S(tart), (Turn) E(nd)`.
     PlayerAction(Option<Action>),
+    /// Format `RES,GAME,{NUM_PLAYERS},{P1_NAME}:{P1_POINTS},{P2_NAME}:{P2_POINTS}...`.
+    GameState(Option<GameState>),
 }
 
 impl ToOwned for ResponseType {
@@ -207,6 +211,7 @@ impl ToOwned for ResponseType {
             ResponseType::Name(_) => ResponseType::Name(None),
             ResponseType::Status(_) => ResponseType::Status(None),
             ResponseType::PlayerAction(_) => ResponseType::PlayerAction(None),
+            ResponseType::GameState(_) => ResponseType::GameState(None),
         }
     }
 }
@@ -219,6 +224,7 @@ impl Display for ResponseType {
             ResponseType::Name(_) => "NAME",
             ResponseType::PlayerAction(_) => "ACT",
             ResponseType::Status(_) => "STATUS",
+            ResponseType::GameState(_) => "GAME",
         };
 
         write!(f, "{response_type}")
@@ -235,6 +241,7 @@ impl FromStr for ResponseType {
             "NAME" => Ok(ResponseType::Name(None)),
             "ACT" => Ok(ResponseType::PlayerAction(None)),
             "STATUS" => Ok(ResponseType::Status(None)),
+            "GAME" => Ok(ResponseType::GameState(None)),
             _ => Err(()),
         }
     }
@@ -254,6 +261,52 @@ impl Response {
         Response { response_type }
     }
 
+    pub fn from_action(action: Action) -> Response {
+        Response {
+            response_type: ResponseType::PlayerAction(Some(action)),
+        }
+    }
+
+    pub fn from_name(name: String) -> Response {
+        Response {
+            response_type: ResponseType::Name(Some(name)),
+        }
+    }
+
+    pub fn from_game_state(game_state: GameState) -> Response {
+        Response {
+            response_type: ResponseType::GameState(Some(game_state)),
+        }
+    }
+
+    // pub fn new_player_details(name: String, points: u16) -> Response {
+    //     Response {
+    //         response_type: ResponseType::Details(Some(PlayerDetails::new(name, points))),
+    //     }
+    // }
+
+    pub fn new_turn_start(pname: String) -> Response {
+        Response {
+            response_type: ResponseType::PlayerAction(Some(Action::new(
+                ActionType::TurnStart,
+                0,
+                pname,
+                String::new(),
+            ))),
+        }
+    }
+
+    pub fn new_turn_end(pname: String) -> Response {
+        Response {
+            response_type: ResponseType::PlayerAction(Some(Action::new(
+                ActionType::TurnEnd,
+                0,
+                pname,
+                String::new(),
+            ))),
+        }
+    }
+
     /// Returns a reference to `self.response_type`.
     pub fn response_type(&self) -> &ResponseType {
         &self.response_type
@@ -262,7 +315,7 @@ impl Response {
     pub fn validate(response: Result<Response, ServerError>, response_type: ResponseType) {
         match response {
             Ok(response) if variant_eq(response.response_type(), &response_type) => (),
-            Err(_) => todo!(),
+            Err(err) => perror_in_fn("Response::validate", err),
             _ => unreachable!("Received response of invalid type"),
         }
     }
@@ -286,6 +339,21 @@ impl Display for Response {
             ResponseType::Status(status) => {
                 format!("RES,STATUS,{}", status.as_ref().unwrap())
             }
+            ResponseType::GameState(game_state) => {
+                let game_state = game_state.as_ref().unwrap();
+                let mut response = String::from("RES,GAME,");
+                let num_players = game_state.num_players().to_string();
+                response.push_str(&num_players);
+                response.push(',');
+                for player in game_state.all_players().iter() {
+                    let name = player.name();
+                    let points = player.points().to_string();
+                    let player_details = format!("{name}:{points},");
+                    response.push_str(&player_details);
+                }
+                response.pop(); /* removing trailing comma */
+                response
+            }
         };
 
         write!(f, "{response}")
@@ -294,12 +362,15 @@ impl Display for Response {
 
 #[derive(Debug)]
 pub enum ResponseParseError {
-    TooFewArguments,
+    InvalidNumArguments,
     NotAResponse,
     InvalidType,
     ExpectedName,
+    ExpectedNumPlayers,
     ExpectedStatus,
+    ExpectedPoints,
     UnableToParseAction,
+    ParseIntError,
 }
 
 impl FromStr for Response {
@@ -310,67 +381,128 @@ impl FromStr for Response {
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         let mut parts = s.split(",");
 
-        if parts.clone().count() < 2 {
-            return Err(ResponseParseError::TooFewArguments);
-        }
-
-        let first = parts.next().unwrap();
-        if first != "RES" {
-            return Err(ResponseParseError::NotAResponse);
-        }
-
-        let response_type = parts.next().unwrap();
-        let response_type = ResponseType::from_str(response_type);
-        if response_type.is_err() {
-            return Err(ResponseParseError::InvalidType);
-        }
-        let response_type = response_type.unwrap();
+        validate_parts(&mut parts)?;
+        let response_type = validate_response_type(&mut parts)?;
 
         match response_type {
-            ResponseType::Name(_) => {
-                if let Some(name) = parts.next() {
-                    Ok(Response {
-                        response_type: ResponseType::Name(Some(name.to_string())),
-                    })
-                } else {
-                    Err(ResponseParseError::ExpectedName)
-                }
-            }
-            ResponseType::PlayerAction(_) => {
-                let parts: Vec<&str> = parts.collect();
-                let parts = parts.join(",");
-                let action = Action::from_str(&parts);
-
-                match action {
-                    Ok(action) => Ok(Response {
-                        response_type: ResponseType::PlayerAction(Some(action)),
-                    }),
-                    Err(_) => Err(ResponseParseError::UnableToParseAction),
-                }
-            }
-            ResponseType::Status(_) => {
-                if let Some(status) = parts.next() {
-                    let status = StatusType::from_str(status);
-                    match status {
-                        Ok(status) => Ok(Response::new(ResponseType::Status(Some(status)))),
-                        Err(_) => Err(ResponseParseError::ExpectedStatus),
-                    }
-                } else {
-                    Err(ResponseParseError::ExpectedStatus)
-                }
-            }
+            ResponseType::Name(_) => parts_to_name(&mut parts),
+            ResponseType::PlayerAction(_) => parts_to_action(&mut parts),
+            ResponseType::Status(_) => parts_to_status(&mut parts),
+            ResponseType::GameState(_) => parts_to_game_state(&mut parts),
         }
     }
 }
 
-/// Constant for simplyfying awaiting and sending responses.
-pub const NAME_RESPONSE: Response = Response::new(ResponseType::Name(None));
-/// Constant for simplyfying awaiting and sending responses.
-pub const ACTION_RESPONSE: Response = Response::new(ResponseType::PlayerAction(None));
-/// Constant for simplyfying awaiting and sending responses.
-pub const STATUS_RESPONSE: Response = Response::new(ResponseType::Status(None));
-/// Constant for simplyfying awaiting and sending responses.
-pub const STATUS_RESPONSE_YES: Response =
-    Response::new(ResponseType::Status(Some(StatusType::Yes)));
-/// Constant for simplyfying awaiting and sending responses.
-pub const STATUS_RESPONSE_NO: Response = Response::new(ResponseType::Status(Some(StatusType::No)));
+fn validate_parts(parts: &mut Split<&str>) -> Result<(), ResponseParseError> {
+    if parts.clone().count() < 2 {
+        return Err(ResponseParseError::InvalidNumArguments);
+    }
+
+    let first = parts.next().unwrap();
+    if first != "RES" {
+        return Err(ResponseParseError::NotAResponse);
+    }
+
+    Ok(())
+}
+
+fn validate_response_type(parts: &mut Split<&str>) -> Result<ResponseType, ResponseParseError> {
+    let response_type = parts.next().unwrap();
+    let response_type = ResponseType::from_str(response_type);
+    match response_type {
+        Ok(response_type) => Ok(response_type),
+        Err(_) => Err(ResponseParseError::InvalidType),
+    }
+}
+
+fn parts_to_name(parts: &mut Split<&str>) -> Result<Response, ResponseParseError> {
+    if let Some(name) = parts.next() {
+        Ok(Response::from_name(name.to_string()))
+    } else {
+        Err(ResponseParseError::ExpectedName)
+    }
+}
+
+fn parts_to_action(parts: &mut Split<&str>) -> Result<Response, ResponseParseError> {
+    let parts: Vec<&str> = parts.collect();
+    let parts = parts.join(",");
+    let action = Action::from_str(&parts);
+
+    match action {
+        Ok(action) => Ok(Response {
+            response_type: ResponseType::PlayerAction(Some(action)),
+        }),
+        Err(_) => Err(ResponseParseError::UnableToParseAction),
+    }
+}
+
+fn parts_to_status(parts: &mut Split<&str>) -> Result<Response, ResponseParseError> {
+    if let Some(status) = parts.next() {
+        let status = StatusType::from_str(status);
+        match status {
+            Ok(status) => Ok(Response::new(ResponseType::Status(Some(status)))),
+            Err(_) => Err(ResponseParseError::ExpectedStatus),
+        }
+    } else {
+        Err(ResponseParseError::ExpectedStatus)
+    }
+}
+
+fn parts_to_game_state(parts: &mut Split<&str>) -> Result<Response, ResponseParseError> {
+    if let Some(num_players) = parts.next() {
+        let num_players = match num_players.parse::<u8>() {
+            Ok(n) => n,
+            Err(_) => return Err(ResponseParseError::ParseIntError),
+        };
+
+        let mut game_state = GameState::new();
+        for _ in 0..num_players {
+            if let Some(player) = parts.next() {
+                let player_details = &mut player.split(":");
+                if player_details.clone().count() != 2 {
+                    return Err(ResponseParseError::InvalidNumArguments);
+                }
+                let name = player_details.next().unwrap();
+                let points = player_details.next().unwrap();
+                let points = match points.parse::<u16>() {
+                    Ok(n) => n,
+                    Err(_) => return Err(ResponseParseError::ParseIntError),
+                };
+                let player = PlayerDetails::new(name.to_string(), points);
+                game_state.add_player(player);
+            } else {
+                return Err(ResponseParseError::InvalidNumArguments);
+            }
+        }
+
+        Ok(Response::from_game_state(game_state))
+    } else {
+        Err(ResponseParseError::ExpectedNumPlayers)
+    }
+}
+
+// fn parts_to_details(parts: &mut Split<&str>) -> Result<Response, ResponseParseError> {
+//     if let Some(name) = parts.next() {
+//         if let Some(points) = parts.next() {
+//             let points = points.parse::<u16>();
+//             if points.is_err() {
+//                 Err(ResponseParseError::ExpectedPoints)
+//             } else {
+//                 let points = points.unwrap();
+//                 Ok(Response::new(ResponseType::Details(Some(
+//                     PlayerDetails::new(name.to_string(), points),
+//                 ))))
+//             }
+//         } else {
+//             Err(ResponseParseError::ExpectedPoints)
+//         }
+//     } else {
+//         Err(ResponseParseError::ExpectedName)
+//     }
+// }
+
+impl Default for Response {
+    fn default() -> Self {
+        Response::new(ResponseType::Name(None))
+    }
+}

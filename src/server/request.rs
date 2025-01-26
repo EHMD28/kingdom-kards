@@ -6,12 +6,14 @@ use super::ServerError;
 
 #[derive(PartialEq, Debug)]
 pub enum RequestType {
-    /// Format: `"REQ,NAME"`.
+    /// Format: `REQ,NAME`.
     Name,
     /// Format: `REQ,STATUS`.
     Status,
-    /// Format `"REQ,ACT"`.
+    /// Format `REQ,ACT`.
     PlayerAction,
+    /// Format: `REQ,GAME`.
+    GameState,
 }
 
 impl ToOwned for RequestType {
@@ -22,6 +24,7 @@ impl ToOwned for RequestType {
             RequestType::Name => RequestType::Name,
             RequestType::Status => RequestType::Status,
             RequestType::PlayerAction => RequestType::PlayerAction,
+            RequestType::GameState => RequestType::GameState,
         }
     }
 }
@@ -34,6 +37,7 @@ impl Display for RequestType {
             RequestType::Name => "NAME",
             RequestType::PlayerAction => "ACT",
             RequestType::Status => "STATUS",
+            RequestType::GameState => "GAME",
         };
 
         write!(f, "{type_str}")
@@ -124,14 +128,10 @@ impl FromStr for Request {
             "STATUS" => Ok(Request {
                 request_type: RequestType::Status,
             }),
+            "GAME" => Ok(Request {
+                request_type: RequestType::GameState,
+            }),
             _ => Err(RequestParseError::InvalidType),
         }
     }
 }
-
-/// Constant for simplyfying awaiting and sending requests.
-pub const NAME_REQUEST: Request = Request::new(RequestType::Name);
-/// Constant for simplyfying awaiting and sending requests.
-pub const ACTION_REQUEST: Request = Request::new(RequestType::PlayerAction);
-/// Constant for simplyfying awaiting and sending requests.
-pub const STATUS_REQUEST: Request = Request::new(RequestType::Status);

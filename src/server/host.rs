@@ -1,27 +1,20 @@
 //! This module contains a set of functions for creating a server and
 //! handling clients.
 
-use std::{
-    net::{SocketAddr, TcpListener, TcpStream},
-    thread,
-    time::Duration,
-};
+use std::{net::TcpListener, thread, time::Duration};
 
 use rand::{seq::SliceRandom, thread_rng};
 
 use crate::{
     game::game_state::{GameState, PlayerDetails},
     server::constants::{STATUS_REQUEST, STATUS_RESPONSE_YES},
-    utils::{perror_in_fn, variant_eq},
+    utils::perror_in_fn,
 };
 
 use super::{
-    constants::{
-        ACTION_REQUEST, DETAILS_REQUEST, DETAILS_RESPONSE, NAME_REQUEST, NAME_RESPONSE,
-        STATUS_RESPONSE_NO,
-    },
+    constants::{ACTION_REQUEST, MAX_PLAYERS, NAME_REQUEST, NAME_RESPONSE, STATUS_RESPONSE_NO},
     request::{Request, RequestType},
-    response::{Action, ActionType, Response, ResponseType},
+    response::{Response, ResponseType},
     StreamHandler,
 };
 
@@ -40,7 +33,6 @@ impl ServerInstance {
         let port = "127.0.0.1:5464".to_string();
         let listener = TcpListener::bind(port).expect("Failed to bind to port 127.0.0.1:5464");
         // The maximum amount of players allowed to join a game.
-        const MAX_PLAYERS: usize = 6;
 
         ServerInstance {
             game_state: GameState::new(),
@@ -69,6 +61,7 @@ impl ServerInstance {
 
         println!("Starting server with join code: {}", self.join_code);
         self.name_players();
+        self.game_state.print_all_players();
         self.randomize_players();
         self.get_player_details();
         // self.start_game_loop();
@@ -184,24 +177,26 @@ impl ServerInstance {
     }
 
     fn get_player_details(&mut self) {
-        // TODO: Write client-side code for this.
-        for client in self.clients.iter_mut() {
-            if let Err(err) = client.send_request(DETAILS_REQUEST) {
-                perror_in_fn("get_player_details", err);
-            }
+        unimplemented!()
 
-            let player_details = client.await_response(DETAILS_RESPONSE);
-            match player_details {
-                Ok(response) => {
-                    if let ResponseType::Details(Some(details)) = response.response_type() {
-                        self.players.push(details.to_owned());
-                    } else {
-                        unreachable!();
-                    }
-                }
-                Err(err) => perror_in_fn("get_player_details", err),
-            }
-        }
+        // // TODO: Write client-side code for this.
+        // for client in self.clients.iter_mut() {
+        //     if let Err(err) = client.send_request(DETAILS_REQUEST) {
+        //         perror_in_fn("get_player_details", err);
+        //     }
+
+        //     let player_details = client.await_response(DETAILS_RESPONSE);
+        //     match player_details {
+        //         Ok(response) => {
+        //             if let ResponseType::Details(Some(details)) = response.response_type() {
+        //                 self.players.push(details.to_owned());
+        //             } else {
+        //                 unreachable!();
+        //             }
+        //         }
+        //         Err(err) => perror_in_fn("get_player_details", err),
+        //     }
+        // }
     }
 
     /// Starts core gameplay loop.
