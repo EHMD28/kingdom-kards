@@ -19,22 +19,12 @@ mod tests {
         let mut player = Player::with_name(String::from("John Smith"));
         assert_eq!(player.name(), "John Smith");
         assert_eq!(player.points(), 100);
-        assert_eq!(player.get_deck_size(), 52 - 5);
-        assert_eq!(player.get_hand_size(), 5);
+        assert_eq!(player.deck_size(), 52 - 5);
+        assert_eq!(player.hand_size(), 5);
 
         player.draw_card();
-        assert_eq!(player.get_deck_size(), 52 - 6);
-        assert_eq!(player.get_hand_size(), 6);
-    }
-
-    #[test]
-    fn card_effects_working() {
-        let mut player_one = Player::with_name(String::from("John Smith"));
-        assert_eq!(player_one.points(), 100);
-        Player::play_king(10, &mut player_one);
-        assert_eq!(player_one.points(), 80);
-        Player::play_queen(0, &mut player_one);
-        assert_eq!(player_one.points(), 90);
+        assert_eq!(player.deck_size(), 52 - 6);
+        assert_eq!(player.hand_size(), 6);
     }
 
     #[test]

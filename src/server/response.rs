@@ -3,6 +3,7 @@ use std::fmt::Display;
 use std::io::{BufRead, Write};
 use std::str::FromStr;
 
+use crate::game::card::{Card, Color, Value};
 use crate::game::game_state::{GameState, PlayerDetails};
 use crate::utils::{perror_in_fn, variant_eq};
 
@@ -83,6 +84,27 @@ impl ActionType {
             "S" => Some(ActionType::TurnStart),
             "E" => Some(ActionType::TurnEnd),
             _ => None,
+        }
+    }
+
+    pub fn from_card(card: &Card) -> ActionType {
+        match card.value() {
+            Value::Ace => match card.color() {
+                Color::Black => ActionType::PlayBlackAce,
+                Color::Red => ActionType::PlayRedAce,
+            },
+            Value::Two
+            | Value::Three
+            | Value::Four
+            | Value::Five
+            | Value::Six
+            | Value::Seven
+            | Value::Eight
+            | Value::Nine
+            | Value::Ten => ActionType::PlayNumber,
+            Value::Jack => ActionType::PlayJack,
+            Value::Queen => ActionType::PlayQueen,
+            Value::King => ActionType::PlayKing,
         }
     }
 }

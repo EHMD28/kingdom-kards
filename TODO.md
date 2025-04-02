@@ -7,9 +7,10 @@
 - [ ] Add client side game state
 - [ ] Implement gameplay loop
 - [ ] Add join code generation 
-- [X] Add error handling
-    - [X] Checking bytes read/written from stream
-    - [X] Handling lost connections
+- [ ] Add error handling
+    - [X] Handling late connections
+    - [ ] Handling lost connections
+    - [ ] Simplify error handling
 - [X] Change code from multithreaded to holding every connection in a vector
     - [X] Accept players
     - [X] Respond to client

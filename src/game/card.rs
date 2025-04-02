@@ -87,23 +87,29 @@ const COLOR_BLACK: &str = "\x1b[47;30m";
 const COLOR_RED: &str = "\x1b[47;31m";
 const COLOR_RESET: &str = "\x1b[0m";
 
+impl Display for Card {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{} {} of {}", self.color(), self.value, self.suit)
+    }
+}
+
 impl Card {
     pub fn new(suit: Suit, value: Value) -> Self {
         Self { suit, value }
     }
 
-    pub fn get_suit(&self) -> Suit {
-        self.suit
+    pub fn suit(&self) -> &Suit {
+        &self.suit
     }
 
-    pub fn get_value(&self) -> Value {
-        self.value
+    pub fn value(&self) -> &Value {
+        &self.value
     }
 
-    pub fn get_color(&self) -> Color {
+    pub fn color(&self) -> &Color {
         match self.suit {
-            Suit::Spades | Suit::Clubs => Color::Black,
-            Suit::Diamonds | Suit::Hearts => Color::Red,
+            Suit::Spades | Suit::Clubs => &Color::Black,
+            Suit::Diamonds | Suit::Hearts => &Color::Red,
         }
     }
 
@@ -169,21 +175,6 @@ impl Card {
                 Value::Queen => "🃍",
                 Value::King => "🃎",
             },
-        }
-    }
-
-    pub fn _print_self(&self) {
-        println!("{} {} of {}", self.get_color(), self.value, self.suit);
-    }
-
-    pub fn _print_self_unicode(&self) {
-        match self.get_color() {
-            Color::Black => {
-                print!("{COLOR_BLACK}{} {COLOR_RESET}", self.to_unicode());
-            }
-            Color::Red => {
-                print!("{COLOR_RED}{} {COLOR_RESET}", self.to_unicode());
-            }
         }
     }
 }

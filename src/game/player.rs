@@ -5,6 +5,8 @@ use std::panic;
 
 use crate::game::card::{Card, Suit, Value};
 use crate::server::constants::DECK_SIZE;
+use crate::server::response::{Action, ActionType};
+use crate::server::utils::get_num_input;
 
 use rand::seq::SliceRandom;
 use rand::thread_rng;
@@ -65,12 +67,16 @@ impl Player {
         self.points
     }
 
-    pub fn get_hand_size(&self) -> u8 {
-        self.hand.len() as u8
+    pub fn hand(&self) -> &Vec<Card> {
+        &self.hand
     }
 
-    pub fn get_card_from_hand(&self, n: u8) -> &Card {
-        if n >= self.get_hand_size() {
+    pub fn hand_size(&self) -> usize {
+        self.hand.len()
+    }
+
+    pub fn card_in_hand(&self, n: usize) -> &Card {
+        if n >= self.hand_size() {
             panic!("Invalid index of hand");
         }
 
@@ -103,7 +109,7 @@ impl Player {
         self.deck.shuffle(&mut thread_rng());
     }
 
-    pub fn get_deck_size(&self) -> u16 {
+    pub fn deck_size(&self) -> u16 {
         self.deck.len() as u16
     }
 
@@ -121,67 +127,36 @@ impl Player {
         }
     }
 
-    pub fn play_card(&mut self, pos: u8) {
-        if pos >= self.hand.len() as u8 {
-            panic!("Can't access index of hand");
-        }
+    pub fn get_action(&self) -> Action {
+        self.print_hand();
+        let choosen_card = get_num_input("Choose a card", 0, self.hand_size() as i32);
+        let choosen_card = self.card_in_hand(choosen_card as usize);
+        let action_type = ActionType::from_card(choosen_card);
 
-        let card = self.hand.get(pos as usize).unwrap();
-
-        match card.get_value() {
-            Value::King => todo!(),
-            Value::Queen => todo!(),
-            Value::Jack => todo!(),
-            Value::Two
-            | Value::Three
-            | Value::Four
-            | Value::Five
-            | Value::Six
-            | Value::Seven
-            | Value::Eight
-            | Value::Nine
-            | Value::Ten => {
-                todo!()
-            }
-            Value::Ace => match card.get_color() {
-                Color::Red => todo!(),
-                Color::Black => todo!(),
-            },
-        }
-    }
-
-    pub fn play_king(attachment: u16, target: &mut Player) {
-        let damage = 10 + attachment;
-        let new_points = target.points() as i16 - damage as i16;
-        target.points = max(new_points, 0) as u16;
-    }
-
-    pub fn play_queen(attachment: u16, target: &mut Player) {
-        target.points += 10 + attachment;
+        todo!()
     }
 
     pub fn _print_deck(&self) {
         for card in &self.deck {
-            card._print_self();
+            println!("{card}")
         }
     }
 
-    pub fn _print_hand(&self) {
+    pub fn print_hand(&self) {
         for (i, card) in self.hand.iter().enumerate() {
-            print!("{}. ", i + 1);
-            card._print_self();
+            println!("{}. {card}", i + 1);
         }
     }
 
     pub fn _print_hand_unicode(&self) {
         for card in &self.hand {
-            card._print_self_unicode();
+            println!("{}", card.to_unicode());
         }
     }
 
     pub fn _print_self(&self) {
         println!("Player Name: {}", self.name);
         println!("Points: {}", self.points);
-        self._print_hand();
+        self.print_hand();
     }
 }

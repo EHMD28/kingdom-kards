@@ -11,7 +11,7 @@ use super::player::Player;
 /// This is a struct for representing players server side, since it isn't necessary for the
 /// server to know which cards each player has, as long as everything is being validated server
 /// side.
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Clone)]
 pub struct PlayerDetails {
     name: String,
     points: u16,
@@ -33,7 +33,7 @@ impl PlayerDetails {
 
 impl Display for PlayerDetails {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "Name: {} | Points: {}", self.name(), self.points())
+        write!(f, "{} with {} points.", self.name(), self.points())
     }
 }
 
@@ -46,15 +46,15 @@ impl From<Player> for PlayerDetails {
     }
 }
 
-impl ToOwned for PlayerDetails {
-    type Owned = PlayerDetails;
+// impl ToOwned for PlayerDetails {
+//     type Owned = PlayerDetails;
 
-    fn to_owned(&self) -> Self::Owned {
-        PlayerDetails::new(self.name.to_string(), self.points)
-    }
-}
+//     fn to_owned(&self) -> Self::Owned {
+//         PlayerDetails::new(self.name.to_string(), self.points)
+//     }
+// }
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Clone)]
 pub struct GameState {
     players: Vec<PlayerDetails>,
     current_player: usize,
@@ -91,14 +91,18 @@ impl GameState {
         self.players.get(pos).unwrap()
     }
 
+    pub fn turn_player(&self) -> &PlayerDetails {
+        self.players.get(self.current_player).unwrap()
+    }
+
     pub fn move_next_player(&mut self) {
         let num_players = self.players.len();
         self.current_player = (self.current_player + 1) % (num_players);
     }
 
     pub fn print_all_players(&self) {
+        println!("Current Players:");
         for (index, player) in self.players.iter().enumerate() {
-            println!("Game State");
             println!("\t{}. {player}", index + 1);
         }
     }

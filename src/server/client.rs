@@ -6,16 +6,20 @@ use std::net::TcpStream;
 use std::thread;
 use std::time::Duration;
 
-use crate::game::game_state::PlayerDetails;
+use crate::game::game_state::{GameState, PlayerDetails};
 use crate::game::player::Player;
 use crate::server::request::Request;
 use crate::server::response::{Response, ResponseType, StatusType};
 use crate::server::utils::get_input;
-use crate::utils::perror_in_fn;
+use crate::utils::{perror_in_fn, variant_eq};
 
-use super::constants::{MAX_USERNAME_LEN, NAME_REQUEST, STATUS_REQUEST, STATUS_RESPONSE};
+use super::constants::{
+    ACTION_REQUEST, ACTION_RESPONSE, GAME_STATE_REQUEST, GAME_STATE_RESPONSE, MAX_USERNAME_LEN,
+    NAME_REQUEST, STATUS_REQUEST, STATUS_RESPONSE,
+};
 use super::request::RequestType;
-use super::StreamHandler;
+use super::response::ActionType;
+use super::{response, StreamHandler};
 
 /// This is the type used for representing client-side errors.
 pub enum ClientError {
@@ -117,8 +121,9 @@ impl ClientInstance {
     /// (i.e. `connect_to_server()`) was not called or it failed.
     pub fn start(&mut self) {
         self.choose_player_name();
-        // self.send_player_details();
-        // self.start_game_loop();
+        let game_state = self.get_game_state();
+        game_state.print_all_players();
+        self.start_game_loop();
     }
 
     /// This function is used to initiate communcation with the server so the
@@ -150,7 +155,7 @@ impl ClientInstance {
 
         let name = ClientInstance::get_name_input();
         let name_response = Response::new(ResponseType::Name(Some(name.clone())));
-        if let Err(err) = handler.send_response(name_response) {
+        if let Err(err) = handler.send_response(&name_response) {
             perror_in_fn("choose_player_name", err);
         }
         name
@@ -217,26 +222,82 @@ impl ClientInstance {
         }
     }
 
-    fn send_player_details(&mut self) {
-        unimplemented!()
+    fn get_game_state(&mut self) -> GameState {
+        let handler = self.handler.as_mut().unwrap();
+        if let Err(err) = handler.send_request(GAME_STATE_REQUEST) {
+            perror_in_fn("ClientInstance::get_game_state", err);
+        }
 
-        // let handler = self.handler.as_mut().unwrap();
-
-        // if let Err(err) = handler.await_request(DETAILS_REQUEST) {
-        //     perror_in_fn("send_player_details", err);
-        // }
-
-        // let name = self.player.name().to_string();
-        // let points = self.player.points();
-        // let details = Response::new_player_details(name, points);
-
-        // if let Err(err) = handler.send_response(details) {
-        //     perror_in_fn("send_player_details", err);
-        // }
+        let game_state = handler.await_response(GAME_STATE_RESPONSE);
+        match game_state {
+            Ok(response) => {
+                if let ResponseType::GameState(game_state) = response.response_type() {
+                    game_state.as_ref().unwrap().to_owned()
+                } else {
+                    unreachable!()
+                }
+            }
+            Err(err) => {
+                perror_in_fn("ClientInstance::get_game_state", err);
+                GameState::new()
+            }
+        }
     }
 
     /// Starts core gameplay loop.
     fn start_game_loop(&mut self) {
+        let handler = self.handler.as_mut().unwrap();
+        let turn_player = ClientInstance::get_turn_start(handler);
+        println!("Turn player is: {turn_player}");
+        if turn_player == self.player.name() {
+            self.start_my_turn();
+        } else {
+            self.start_other_turn();
+        }
+    }
+
+    /// Get action from server signifying the start of a player's turn.
+    /// If the turn player is this current player, this function returns true,
+    /// else, it returns false.
+    fn get_turn_start(handler: &mut StreamHandler) -> String {
+        if let Err(err) = handler.send_request(ACTION_REQUEST) {
+            perror_in_fn("ClientInstance::get_turn_start", err);
+        }
+
+        let turn_start = handler.await_response(ACTION_RESPONSE);
+        match turn_start {
+            Ok(response) => {
+                if let ResponseType::PlayerAction(Some(action)) = response.response_type() {
+                    if variant_eq(action.action_type(), &ActionType::TurnStart) {
+                        let turn_player = action.from_player().to_owned();
+                        turn_player
+                    } else {
+                        "".to_string()
+                    }
+                } else {
+                    unreachable!()
+                }
+            }
+            Err(err) => {
+                perror_in_fn("ClientInstance::get_turn_start", err);
+                "".to_string()
+            }
+        }
+    }
+
+    fn start_my_turn(&mut self) {
+        /*
+           1. Preform an action
+           2. Inform server of action
+           3. Repeat 1-2 until turn end
+        */
+
+        let action = self.player.get_action();
+
+        todo!()
+    }
+
+    fn start_other_turn(&mut self) {
         todo!()
     }
 

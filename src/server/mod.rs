@@ -83,7 +83,7 @@ impl StreamHandler {
     }
 
     /// Sends `response` as string over `stream`.
-    pub fn send_response(&mut self, response: Response) -> std::io::Result<()> {
+    pub fn send_response(&mut self, response: &Response) -> std::io::Result<()> {
         let response_type = response.response_type();
         let mut response = response.to_string();
         /* Newline is used a delimiting character to avoid requests being mangled. */
@@ -99,7 +99,7 @@ impl StreamHandler {
 
     /// Blocks the current thread until a `Request` is received. If the request
     /// received is of the wrong type, then this function will return an error.
-    pub fn await_request(&mut self, request: Request) -> Result<Request, ServerError> {
+    pub fn await_request(&mut self, request: &Request) -> Result<Request, ServerError> {
         let request_type = request.request_type().to_owned();
         let received = &mut String::new();
 
@@ -126,7 +126,7 @@ impl StreamHandler {
     }
 
     /// Sends `request` over stream as a string.
-    pub fn send_request(&mut self, request: Request) -> std::io::Result<()> {
+    pub fn send_request(&mut self, request: &Request) -> std::io::Result<()> {
         let request_type = request.request_type();
         let mut request = request.to_string();
         /* Newline is used a delimiting character to avoid requests being mangled. */
@@ -141,7 +141,7 @@ impl StreamHandler {
 
     /// Blocks the current thread until a `Response` is received. If the response
     /// received is of the wrong type, then this function will return an error.
-    pub fn await_response(&mut self, response: Response) -> Result<Response, ServerError> {
+    pub fn await_response(&mut self, response: &Response) -> Result<Response, ServerError> {
         let response_type = response.response_type().to_owned();
         let received = &mut String::new();
 

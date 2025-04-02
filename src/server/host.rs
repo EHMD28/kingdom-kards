@@ -12,7 +12,10 @@ use crate::{
 };
 
 use super::{
-    constants::{ACTION_REQUEST, MAX_PLAYERS, NAME_REQUEST, NAME_RESPONSE, STATUS_RESPONSE_NO},
+    constants::{
+        ACTION_REQUEST, GAME_STATE_REQUEST, MAX_PLAYERS, NAME_REQUEST, NAME_RESPONSE,
+        STATUS_RESPONSE_NO,
+    },
     request::{Request, RequestType},
     response::{Response, ResponseType},
     StreamHandler,
@@ -62,9 +65,10 @@ impl ServerInstance {
         println!("Starting server with join code: {}", self.join_code);
         self.name_players();
         self.game_state.print_all_players();
+        self.send_game_state();
         self.randomize_players();
-        self.get_player_details();
-        // self.start_game_loop();
+
+        self.start_game_loop();
     }
 
     /// Allows `num_players` clients to join, exits after all players have joined.
@@ -172,31 +176,21 @@ impl ServerInstance {
         false
     }
 
-    fn randomize_players(&mut self) {
-        self.clients.shuffle(&mut thread_rng());
+    fn send_game_state(&mut self) {
+        for client in self.clients.iter_mut() {
+            if let Err(err) = client.await_request(GAME_STATE_REQUEST) {
+                perror_in_fn("ServerInstance::send_game_state", err);
+            }
+            if let Err(err) =
+                client.send_response(&Response::from_game_state(self.game_state.clone()))
+            {
+                perror_in_fn("ServerInstance::send_game_state", err);
+            }
+        }
     }
 
-    fn get_player_details(&mut self) {
-        unimplemented!()
-
-        // // TODO: Write client-side code for this.
-        // for client in self.clients.iter_mut() {
-        //     if let Err(err) = client.send_request(DETAILS_REQUEST) {
-        //         perror_in_fn("get_player_details", err);
-        //     }
-
-        //     let player_details = client.await_response(DETAILS_RESPONSE);
-        //     match player_details {
-        //         Ok(response) => {
-        //             if let ResponseType::Details(Some(details)) = response.response_type() {
-        //                 self.players.push(details.to_owned());
-        //             } else {
-        //                 unreachable!();
-        //             }
-        //         }
-        //         Err(err) => perror_in_fn("get_player_details", err),
-        //     }
-        // }
+    fn randomize_players(&mut self) {
+        self.clients.shuffle(&mut thread_rng());
     }
 
     /// Starts core gameplay loop.
@@ -213,18 +207,19 @@ impl ServerInstance {
     }
 
     fn start_turn(&mut self) {
-        let handler = self.clients.first_mut().unwrap();
-
-        todo!();
-        self.respond_all(Response::default()); // TODO: this.
-
-        todo!()
+        let turn_player = self.game_state.turn_player();
+        let turn_start = Response::new_turn_start(turn_player.name().to_string());
+        self.response_all(turn_start);
     }
 
-    fn respond_all(&mut self, response: Response) {
+    fn response_all(&mut self, response: Response) {
         for client in self.clients.iter_mut() {
             if let Err(err) = client.await_request(ACTION_REQUEST) {
-                perror_in_fn("response_all", err);
+                perror_in_fn("ServerInstance::response_all", err);
+            }
+
+            if let Err(err) = client.send_response(&response) {
+                perror_in_fn("ServerInstance::response_all", err);
             }
         }
     }
