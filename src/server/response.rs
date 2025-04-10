@@ -1,12 +1,12 @@
 use core::str::Split;
 use std::fmt::Display;
-use std::io::{BufRead, Write};
 use std::str::FromStr;
 
 use crate::game::card::{Card, Color, Value};
 use crate::game::game_state::{GameState, PlayerDetails};
 use crate::utils::{perror_in_fn, variant_eq};
 
+use super::request::{Request, RequestType};
 use super::ServerError;
 
 /// Used for asking the server whether an operation is valid or not.
@@ -132,6 +132,15 @@ impl Action {
             attachment,
             from_player,
             to_player,
+        }
+    }
+
+    pub fn new_turn_start() -> Action {
+        Action {
+            action_type: ActionType::TurnStart,
+            attachment: 0,
+            from_player: String::new(),
+            to_player: String::new(),
         }
     }
 
@@ -280,6 +289,16 @@ pub struct Response {
 impl Response {
     /// Creates a new `Response` of type `response_type`.
     pub const fn new(response_type: ResponseType) -> Response {
+        Response { response_type }
+    }
+
+    pub fn from_request(request: Request) -> Response {
+        let response_type = match request.request_type() {
+            RequestType::Name => ResponseType::Name(None),
+            RequestType::Status => ResponseType::Status(None),
+            RequestType::PlayerAction => ResponseType::PlayerAction(None),
+            RequestType::GameState => ResponseType::GameState(None),
+        };
         Response { response_type }
     }
 

@@ -16,7 +16,6 @@ use super::{
         ACTION_REQUEST, GAME_STATE_REQUEST, MAX_PLAYERS, NAME_REQUEST, NAME_RESPONSE,
         STATUS_RESPONSE_NO,
     },
-    request::{Request, RequestType},
     response::{Response, ResponseType},
     StreamHandler,
 };
@@ -103,17 +102,14 @@ impl ServerInstance {
     /// Starts a new thread that rejects all players that join
     /// after the room is full.
     fn reject_extra_players(&mut self) {
-        /* Once all players have joined */
         let listener = self.listener.try_clone().unwrap();
         thread::spawn(move || {
             for connection in listener.incoming() {
                 let handler = &mut StreamHandler::new(connection.unwrap());
-                if let Err(err) = handler.await_request(STATUS_REQUEST) {
-                    perror_in_fn("reject_extra_players", err);
-                }
-
-                /* Reject connection. */
-                if let Err(err) = handler.send_response(STATUS_RESPONSE_NO) {
+                if let Err(err) =
+                    /* Client asking if room is full. */
+                    handler.await_request_send_response(STATUS_REQUEST, STATUS_RESPONSE_NO)
+                {
                     perror_in_fn("reject_extra_players", err);
                 }
             }
@@ -126,20 +122,16 @@ impl ServerInstance {
             let mut is_accepted = false;
 
             while !is_accepted {
-                let name = ServerInstance::get_name(handler);
+                let name = ServerInstance::get_client_name(handler);
                 is_accepted =
-                    ServerInstance::send_status(handler, &mut self.game_state, name.as_str());
+                    ServerInstance::send_name_status(handler, &mut self.game_state, name.as_str());
             }
         }
     }
 
-    fn get_name(handler: &mut StreamHandler) -> String {
-        if let Err(e) = handler.send_request(NAME_REQUEST) {
-            eprintln!("An error occured while sending request: {e}");
-        }
-
-        let name_response = handler.await_response(NAME_RESPONSE);
-        let name = match name_response {
+    fn get_client_name(handler: &mut StreamHandler) -> String {
+        let status = handler.send_request_await_response(NAME_REQUEST, NAME_RESPONSE);
+        match status {
             Ok(response) => {
                 if let ResponseType::Name(name) = response.response_type() {
                     name.as_ref().unwrap().to_owned()
@@ -148,22 +140,24 @@ impl ServerInstance {
                 }
             }
             Err(err) => {
-                perror_in_fn("name_players", err);
-                String::new()
+                perror_in_fn("get_client_name", err);
+                "".to_string()
             }
-        };
-        name
+        }
     }
 
-    fn send_status(handler: &mut StreamHandler, game_state: &mut GameState, name: &str) -> bool {
-        let status_request = handler.await_request(STATUS_REQUEST);
-        Request::validate(status_request, RequestType::Status);
-
+    fn send_name_status(
+        handler: &mut StreamHandler,
+        game_state: &mut GameState,
+        name: &str,
+    ) -> bool {
+        if let Err(err) = handler.await_request(STATUS_REQUEST) {
+            perror_in_fn("send_status", err);
+        }
         if game_state.is_unique_name(name) {
             /* Add a new player with 100 points. */
             let new_player = PlayerDetails::new(name.to_owned(), 100);
             game_state.add_player(new_player);
-
             if let Err(err) = handler.send_response(STATUS_RESPONSE_YES) {
                 perror_in_fn("ServerInstance::send_status", err);
             }
@@ -178,13 +172,11 @@ impl ServerInstance {
 
     fn send_game_state(&mut self) {
         for client in self.clients.iter_mut() {
-            if let Err(err) = client.await_request(GAME_STATE_REQUEST) {
-                perror_in_fn("ServerInstance::send_game_state", err);
-            }
+            let game_state_response = Response::from_game_state(self.game_state.clone());
             if let Err(err) =
-                client.send_response(&Response::from_game_state(self.game_state.clone()))
+                client.await_request_send_response(GAME_STATE_REQUEST, &game_state_response)
             {
-                perror_in_fn("ServerInstance::send_game_state", err);
+                perror_in_fn("send_game_state", err);
             }
         }
     }
@@ -214,12 +206,8 @@ impl ServerInstance {
 
     fn response_all(&mut self, response: Response) {
         for client in self.clients.iter_mut() {
-            if let Err(err) = client.await_request(ACTION_REQUEST) {
-                perror_in_fn("ServerInstance::response_all", err);
-            }
-
-            if let Err(err) = client.send_response(&response) {
-                perror_in_fn("ServerInstance::response_all", err);
+            if let Err(err) = client.await_request_send_response(ACTION_REQUEST, &response) {
+                perror_in_fn("response_all", err);
             }
         }
     }

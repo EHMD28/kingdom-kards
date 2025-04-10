@@ -3,10 +3,11 @@
 
 use std::io::{self, Write};
 use std::net::TcpStream;
+use std::os::macos::raw::stat;
 use std::thread;
 use std::time::Duration;
 
-use crate::game::game_state::{GameState, PlayerDetails};
+use crate::game::game_state::GameState;
 use crate::game::player::Player;
 use crate::server::request::Request;
 use crate::server::response::{Response, ResponseType, StatusType};
@@ -18,8 +19,8 @@ use super::constants::{
     NAME_REQUEST, STATUS_REQUEST, STATUS_RESPONSE,
 };
 use super::request::RequestType;
-use super::response::ActionType;
-use super::{response, StreamHandler};
+use super::response::{Action, ActionType};
+use super::StreamHandler;
 
 /// This is the type used for representing client-side errors.
 pub enum ClientError {
@@ -77,19 +78,15 @@ impl ClientInstance {
     }
 
     fn is_room_open(handler: &mut StreamHandler) -> bool {
-        if let Err(err) = handler.send_request(STATUS_REQUEST) {
-            perror_in_fn("connect_to_server", err);
-        }
-
-        let status_response = handler.await_response(STATUS_RESPONSE);
-        match status_response {
+        let status = handler.send_request_await_response(STATUS_REQUEST, STATUS_RESPONSE);
+        match status {
             Ok(response) => match response.response_type() {
                 ResponseType::Status(Some(StatusType::Yes)) => true,
                 ResponseType::Status(Some(StatusType::No)) => false,
-                _ => unreachable!("Received invalid type"),
+                _ => unreachable!(),
             },
             Err(err) => {
-                perror_in_fn("connect_to_server", err);
+                perror_in_fn("is_room_open", err);
                 false
             }
         }
@@ -141,7 +138,7 @@ impl ClientInstance {
 
         while !is_accepted {
             name = ClientInstance::send_name(handler);
-            is_accepted = ClientInstance::get_status(handler);
+            is_accepted = ClientInstance::get_name_status(handler);
         }
         self.player.set_name(name);
         println!("Joined room as {}", self.player.name());
@@ -150,12 +147,9 @@ impl ClientInstance {
     /// Sends name request an awaits response, printing any errors that may
     /// occur.
     fn send_name(handler: &mut StreamHandler) -> String {
-        let name_request = handler.await_request(NAME_REQUEST);
-        Request::validate(name_request, RequestType::Name);
-
         let name = ClientInstance::get_name_input();
-        let name_response = Response::new(ResponseType::Name(Some(name.clone())));
-        if let Err(err) = handler.send_response(&name_response) {
+        let name_response = Response::from_name(name.clone());
+        if let Err(err) = handler.await_request_send_response(NAME_REQUEST, &name_response) {
             perror_in_fn("choose_player_name", err);
         }
         name
@@ -169,32 +163,26 @@ impl ClientInstance {
     ///
     /// This function panics if it receives any invalid types, which should
     /// be impossible when using `send` and `await` functions.
-    fn get_status(handler: &mut StreamHandler) -> bool {
+    fn get_name_status(handler: &mut StreamHandler) -> bool {
         if let Err(err) = handler.send_request(STATUS_REQUEST) {
-            perror_in_fn("choose_player_name", err);
+            perror_in_fn("get_name_status", err);
         }
 
         let status_response = handler.await_response(STATUS_RESPONSE);
         match status_response {
-            Ok(response) => {
-                if let ResponseType::Status(status) = response.response_type() {
-                    match status {
-                        Some(StatusType::Yes) => {
-                            println!("Name was accepted by server.");
-                            true
-                        }
-                        Some(StatusType::No) => {
-                            println!("Name was rejected by server.");
-                            false
-                        }
-                        None => unreachable!("Status was empty"),
-                    }
-                } else {
-                    unreachable!("Received invalid response type");
+            Ok(response) => match response.response_type() {
+                ResponseType::Status(Some(StatusType::Yes)) => {
+                    println!("Name was accepted by server.");
+                    true
                 }
-            }
+                ResponseType::Status(Some(StatusType::No)) => {
+                    println!("Name was rejected by server.");
+                    false
+                }
+                _ => unreachable!(),
+            },
             Err(err) => {
-                perror_in_fn("choose_player_name", err);
+                perror_in_fn("get_name_status", err);
                 false
             }
         }
@@ -224,12 +212,8 @@ impl ClientInstance {
 
     fn get_game_state(&mut self) -> GameState {
         let handler = self.handler.as_mut().unwrap();
-        if let Err(err) = handler.send_request(GAME_STATE_REQUEST) {
-            perror_in_fn("ClientInstance::get_game_state", err);
-        }
-
-        let game_state = handler.await_response(GAME_STATE_RESPONSE);
-        match game_state {
+        let status = handler.send_request_await_response(GAME_STATE_REQUEST, GAME_STATE_RESPONSE);
+        match status {
             Ok(response) => {
                 if let ResponseType::GameState(game_state) = response.response_type() {
                     game_state.as_ref().unwrap().to_owned()
@@ -238,7 +222,7 @@ impl ClientInstance {
                 }
             }
             Err(err) => {
-                perror_in_fn("ClientInstance::get_game_state", err);
+                perror_in_fn("get_game_state", err);
                 GameState::new()
             }
         }
@@ -260,26 +244,22 @@ impl ClientInstance {
     /// If the turn player is this current player, this function returns true,
     /// else, it returns false.
     fn get_turn_start(handler: &mut StreamHandler) -> String {
-        if let Err(err) = handler.send_request(ACTION_REQUEST) {
-            perror_in_fn("ClientInstance::get_turn_start", err);
-        }
-
-        let turn_start = handler.await_response(ACTION_RESPONSE);
-        match turn_start {
+        let status = handler.send_request_await_response(ACTION_REQUEST, ACTION_RESPONSE);
+        match status {
             Ok(response) => {
                 if let ResponseType::PlayerAction(Some(action)) = response.response_type() {
                     if variant_eq(action.action_type(), &ActionType::TurnStart) {
-                        let turn_player = action.from_player().to_owned();
-                        turn_player
+                        /* Turn player is stored as "from_player" in Action. */
+                        action.from_player().to_owned()
                     } else {
-                        "".to_string()
+                        unreachable!()
                     }
                 } else {
                     unreachable!()
                 }
             }
             Err(err) => {
-                perror_in_fn("ClientInstance::get_turn_start", err);
+                perror_in_fn("get_turn_start", err);
                 "".to_string()
             }
         }

@@ -1,6 +1,5 @@
 //! This module contains the code for handling player state client side.
 
-use std::cmp::max;
 use std::panic;
 
 use crate::game::card::{Card, Suit, Value};
@@ -11,7 +10,6 @@ use crate::server::utils::get_num_input;
 use rand::seq::SliceRandom;
 use rand::thread_rng;
 
-use super::card::Color;
 
 pub struct Player {
     name: String,

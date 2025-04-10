@@ -2,7 +2,10 @@ use std::{fmt::Display, str::FromStr};
 
 use crate::utils::variant_eq;
 
-use super::ServerError;
+use super::{
+    response::{Response, ResponseType},
+    ServerError,
+};
 
 #[derive(PartialEq, Debug)]
 pub enum RequestType {
@@ -56,6 +59,16 @@ pub struct Request {
 impl Request {
     /// Creates a new `Request` of type `request_type`.
     pub const fn new(request_type: RequestType) -> Request {
+        Request { request_type }
+    }
+
+    pub fn from_response(response: &Response) -> Request {
+        let request_type = match response.response_type() {
+            ResponseType::Name(_) => RequestType::Name,
+            ResponseType::Status(_) => RequestType::Status,
+            ResponseType::PlayerAction(_) => RequestType::PlayerAction,
+            ResponseType::GameState(_) => RequestType::GameState,
+        };
         Request { request_type }
     }
 

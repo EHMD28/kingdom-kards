@@ -38,6 +38,10 @@ pub enum ServerError {
     RequestError(RequestParseError),
     /// Encountered a response parsing error.
     ReponseError(ResponseParseError),
+    /// Expected same request types, received different types.
+    MismatchedRequestTypes(RequestType, RequestType),
+    /// Expected same response types, received different types.
+    MismatchedResponseTypes(ResponseType, ResponseType),
     /// Encountered a standard io::Error.
     IoError(io::Error),
 }
@@ -58,6 +62,16 @@ impl fmt::Display for ServerError {
             ServerError::ExpectedResponseType(response_type) => {
                 write!(f, "Expected response of type {response_type}")
             }
+            ServerError::MismatchedRequestTypes(one, two) => write!(
+                f,
+                "Expected same request types.
+            Received {one} and {two}"
+            ),
+            ServerError::MismatchedResponseTypes(one, two) => write!(
+                f,
+                "Expected same response
+            types. Received {one} and {two}"
+            ),
         }
     }
 }
@@ -167,5 +181,56 @@ impl StreamHandler {
             }
             Err(err) => Err(ServerError::ReponseError(err)),
         }
+    }
+
+    /// Sends `request` over stream, then blocks current thread until a response is received.
+    /// Once a resposne is received, and the type matches `response` argument, the response
+    /// will be returned as `Ok(Response)`. If this function encounters an error, it will be
+    /// immediately returned as `Err(err)`
+    pub fn send_request_await_response(
+        &mut self,
+        request: &Request,
+        response: &Response,
+    ) -> Result<Response, ServerError> {
+        let equiv_req = Request::from_response(response);
+        if !variant_eq(request.request_type(), equiv_req.request_type()) {
+            return Err(ServerError::MismatchedRequestTypes(
+                request.request_type().to_owned(),
+                equiv_req.request_type().to_owned(),
+            ));
+        }
+        if let Err(err) = self.send_request(request) {
+            return Err(ServerError::IoError(err));
+        }
+        let status = self.await_response(response);
+        match status {
+            Ok(response) => Ok(response),
+            Err(err) => Err(err),
+        }
+    }
+
+    /// Blocks the current thread until a request is received, then sends `response` over stream.
+    pub fn await_request_send_response(
+        &mut self,
+        request: &Request,
+        response: &Response,
+    ) -> Result<(), ServerError> {
+        let equiv_req = Request::from_response(response);
+        if !variant_eq(request.request_type(), equiv_req.request_type()) {
+            return Err(ServerError::MismatchedRequestTypes(
+                request.request_type().to_owned(),
+                equiv_req.request_type().to_owned(),
+            ));
+        }
+        let status = self.await_request(request);
+        match status {
+            Ok(request) => request,
+            Err(err) => return Err(err),
+        };
+        if let Err(err) = self.send_response(response) {
+            return Err(ServerError::IoError(err));
+        }
+
+        Ok(())
     }
 }

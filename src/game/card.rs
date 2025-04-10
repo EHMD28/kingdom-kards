@@ -83,9 +83,9 @@ pub struct Card {
 }
 
 /* used for coloring the cards as Unicode */
-const COLOR_BLACK: &str = "\x1b[47;30m";
-const COLOR_RED: &str = "\x1b[47;31m";
-const COLOR_RESET: &str = "\x1b[0m";
+// const COLOR_BLACK: &str = "\x1b[47;30m";
+// const COLOR_RED: &str = "\x1b[47;31m";
+// const COLOR_RESET: &str = "\x1b[0m";
 
 impl Display for Card {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
