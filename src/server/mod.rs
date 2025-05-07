@@ -98,7 +98,8 @@ impl StreamHandler {
 
     /// Sends `response` as string over `stream`.
     pub fn send_response(&mut self, response: &Response) -> std::io::Result<()> {
-        let response_type = response.response_type();
+        // let response_type = response.response_type();
+        let response_str = response.to_string();
         let mut response = response.to_string();
         /* Newline is used a delimiting character to avoid requests being mangled. */
         response.push('\n');
@@ -107,7 +108,7 @@ impl StreamHandler {
         let stream = self.reader.get_mut();
         stream.write_all(response)?;
         stream.flush()?;
-        println!("Sent response of type {response_type}");
+        println!("\x1b[33mSent response of type '{}'\x1b[0m", response_str);
         Ok(())
     }
 
@@ -117,14 +118,14 @@ impl StreamHandler {
         let request_type = request.request_type().to_owned();
         let received = &mut String::new();
 
-        println!("Awaiting request of type {request_type}");
+        println!("\x1b[33mAwaiting request of type {request_type}\x1b[0m");
         // received.clear();
         if let Err(err) = self.reader.read_line(received) {
             return Err(ServerError::IoError(err));
         }
         remove_newline(received);
 
-        println!("Received: {received}");
+        println!("\x1b[33mReceived: {received}\x1b[0m");
         let request = Request::from_str(received);
 
         match request {
@@ -141,15 +142,16 @@ impl StreamHandler {
 
     /// Sends `request` over stream as a string.
     pub fn send_request(&mut self, request: &Request) -> std::io::Result<()> {
-        let request_type = request.request_type();
-        let mut request = request.to_string();
+        // let request_type = request.request_type();
+        let request_str = request.to_string();
+        let mut request = request_str.clone();
         /* Newline is used a delimiting character to avoid requests being mangled. */
         request.push('\n');
         let request = request.as_bytes();
         let stream = self.reader.get_mut();
         stream.write_all(request)?;
         stream.flush()?;
-        println!("Sent request of type {}", request_type);
+        println!("\x1b[33mSent request of type '{}'\x1b[0m", request_str);
         Ok(())
     }
 
@@ -159,18 +161,15 @@ impl StreamHandler {
         let response_type = response.response_type().to_owned();
         let received = &mut String::new();
 
-        println!("Awaiting response of type {response_type}");
+        println!("\x1b[33mAwaiting response of type {response_type}\x1b[0m");
         /* Using read_line() because requests/responses are separated by newline delimeter */
         // received.clear();
         if let Err(e) = self.reader.read_line(received) {
             return Err(ServerError::IoError(e));
         }
-
         remove_newline(received);
-
-        println!("Received: {received}");
+        println!("\x1b[33mReceived: {received}\x1b[0m");
         let response = Response::from_str(received);
-
         match response {
             Ok(request) => {
                 if variant_eq(request.response_type(), &response_type) {

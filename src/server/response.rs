@@ -55,6 +55,23 @@ pub enum ActionType {
     TurnEnd,
 }
 
+impl ToOwned for ActionType {
+    type Owned = ActionType;
+
+    fn to_owned(&self) -> Self::Owned {
+        match self {
+            ActionType::PlayKing => ActionType::PlayKing,
+            ActionType::PlayQueen => ActionType::PlayQueen,
+            ActionType::PlayJack => ActionType::PlayJack,
+            ActionType::PlayNumber => ActionType::PlayNumber,
+            ActionType::PlayBlackAce => ActionType::PlayBlackAce,
+            ActionType::PlayRedAce => ActionType::PlayRedAce,
+            ActionType::TurnStart => ActionType::TurnStart,
+            ActionType::TurnEnd => ActionType::TurnEnd,
+        }
+    }
+}
+
 impl ActionType {
     /// Converts from `ActionType` to the symbol that is used for string
     /// serialization.
@@ -172,6 +189,19 @@ impl Default for Action {
             attachment: 0,
             from_player: String::default(),
             to_player: String::default(),
+        }
+    }
+}
+
+impl ToOwned for Action {
+    type Owned = Action;
+
+    fn to_owned(&self) -> Self::Owned {
+        Action {
+            action_type: self.action_type.to_owned(),
+            attachment: self.attachment,
+            from_player: self.from_player.to_owned(),
+            to_player: self.to_player.to_owned(),
         }
     }
 }

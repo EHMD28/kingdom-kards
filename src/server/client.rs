@@ -3,22 +3,19 @@
 
 use std::io::{self, Write};
 use std::net::TcpStream;
-use std::os::macos::raw::stat;
 use std::thread;
 use std::time::Duration;
 
 use crate::game::game_state::GameState;
 use crate::game::player::Player;
-use crate::server::request::Request;
 use crate::server::response::{Response, ResponseType, StatusType};
-use crate::server::utils::get_input;
+use crate::ui::get_input;
 use crate::utils::{perror_in_fn, variant_eq};
 
 use super::constants::{
     ACTION_REQUEST, ACTION_RESPONSE, GAME_STATE_REQUEST, GAME_STATE_RESPONSE, MAX_USERNAME_LEN,
     NAME_REQUEST, STATUS_REQUEST, STATUS_RESPONSE,
 };
-use super::request::RequestType;
 use super::response::{Action, ActionType};
 use super::StreamHandler;
 
@@ -120,7 +117,7 @@ impl ClientInstance {
         self.choose_player_name();
         let game_state = self.get_game_state();
         game_state.print_all_players();
-        self.start_game_loop();
+        self.start_game_loop(&game_state);
     }
 
     /// This function is used to initiate communcation with the server so the
@@ -229,15 +226,16 @@ impl ClientInstance {
     }
 
     /// Starts core gameplay loop.
-    fn start_game_loop(&mut self) {
+    fn start_game_loop(&mut self, game_state: &GameState) {
         let handler = self.handler.as_mut().unwrap();
         let turn_player = ClientInstance::get_turn_start(handler);
-        println!("Turn player is: {turn_player}");
-        if turn_player == self.player.name() {
-            self.start_my_turn();
-        } else {
-            self.start_other_turn();
-        }
+        println!("Staring {turn_player}'s Turn");
+        // println!("Turn player is: {turn_player}");
+        // if turn_player == self.player.name() {
+        //     self.start_my_turn(game_state);
+        // } else {
+        //     self.start_other_turn();
+        // }
     }
 
     /// Get action from server signifying the start of a player's turn.
@@ -265,16 +263,28 @@ impl ClientInstance {
         }
     }
 
-    fn start_my_turn(&mut self) {
+    fn start_my_turn(&mut self, game_state: &GameState) {
         /*
            1. Preform an action
            2. Inform server of action
            3. Repeat 1-2 until turn end
         */
 
-        let action = self.player.get_action();
+        loop {
+            let action = self.player.get_action(game_state);
+            self.send_action_to_server(action);
+        }
 
         todo!()
+    }
+
+    fn send_action_to_server(&mut self, action: Action) {
+        let handler = self.handler.as_mut().unwrap();
+        if let Err(err) =
+            handler.await_request_send_response(ACTION_REQUEST, &Response::from_action(action))
+        {
+            perror_in_fn("send_action_to_server", err);
+        }
     }
 
     fn start_other_turn(&mut self) {

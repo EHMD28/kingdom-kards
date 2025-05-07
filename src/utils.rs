@@ -12,5 +12,5 @@ pub fn variant_eq<T>(a: &T, b: &T) -> bool {
 
 /// Prints to `stderr` in format `An error occured in {fn_name}(): {err}`
 pub fn perror_in_fn<T: Display>(fn_name: &str, err: T) {
-    eprintln!("An error occured in {fn_name}(): {err}");
+    eprintln!("\x1b[31mAn error occured in {fn_name}(): {err}\x1b[0m");
 }

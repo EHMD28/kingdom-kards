@@ -41,6 +41,38 @@ pub enum Value {
     King,
 }
 
+impl Value {
+    pub fn is_number(&self) -> bool {
+        matches!(
+            self,
+            Value::Two
+                | Value::Three
+                | Value::Four
+                | Value::Five
+                | Value::Six
+                | Value::Seven
+                | Value::Eight
+                | Value::Nine
+                | Value::Ten
+        )
+    }
+
+    pub fn to_number_value(&self) -> u16 {
+        match self {
+            Value::Two => 2,
+            Value::Three => 3,
+            Value::Four => 4,
+            Value::Five => 5,
+            Value::Six => 6,
+            Value::Seven => 7,
+            Value::Eight => 8,
+            Value::Nine => 9,
+            Value::Ten => 10,
+            _ => unreachable!(),
+        }
+    }
+}
+
 impl Display for Value {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let value = match self {
@@ -87,6 +119,13 @@ pub struct Card {
 // const COLOR_RED: &str = "\x1b[47;31m";
 // const COLOR_RESET: &str = "\x1b[0m";
 
+fn color_to_ansi_code(color: &Color) -> &'static str {
+    match color {
+        Color::Black => "\x1b[0;30m",
+        Color::Red => "\x1b[0;31m",
+    }
+}
+
 impl Display for Card {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "{} {} of {}", self.color(), self.value, self.suit)
@@ -111,6 +150,14 @@ impl Card {
             Suit::Spades | Suit::Clubs => &Color::Black,
             Suit::Diamonds | Suit::Hearts => &Color::Red,
         }
+    }
+
+    pub fn to_colored_text(&self) -> String {
+        let color = color_to_ansi_code(self.color());
+        let value = self.value;
+        let suit = self.suit;
+        let color_reset = "\x1b[0m";
+        format!("{color}{value} of {suit}{color_reset}")
     }
 
     pub fn to_unicode(&self) -> &str {

@@ -1,30 +1,61 @@
 //! This module contains a set of functions for creating a server and
 //! handling clients.
 
-use std::{net::TcpListener, thread, time::Duration};
+use std::{mem::zeroed, net::TcpListener, thread, time::Duration};
 
 use rand::{seq::SliceRandom, thread_rng};
 
 use crate::{
     game::game_state::{GameState, PlayerDetails},
     server::constants::{STATUS_REQUEST, STATUS_RESPONSE_YES},
-    utils::perror_in_fn,
+    utils::{clear_screen, perror_in_fn, variant_eq},
 };
 
 use super::{
+    client,
     constants::{
-        ACTION_REQUEST, GAME_STATE_REQUEST, MAX_PLAYERS, NAME_REQUEST, NAME_RESPONSE,
-        STATUS_RESPONSE_NO,
+        ACTION_REQUEST, ACTION_RESPONSE, GAME_STATE_REQUEST, MAX_PLAYERS, NAME_REQUEST,
+        NAME_RESPONSE, STATUS_RESPONSE_NO,
     },
-    response::{Response, ResponseType},
+    response::{Action, ActionType, Response, ResponseType},
     StreamHandler,
 };
+
+/// Type used for representing clients (`StreamHandler` and `PlayerDetails`) server-side.
+struct Client {
+    handler: StreamHandler,
+    player: Option<PlayerDetails>,
+}
+
+impl Client {
+    fn new(handler: StreamHandler, player: Option<PlayerDetails>) -> Client {
+        Client { handler, player }
+    }
+
+    fn handler(&self) -> &StreamHandler {
+        &self.handler
+    }
+
+    fn handler_mut(&mut self) -> &mut StreamHandler {
+        &mut self.handler
+    }
+
+    fn set_player(&mut self, player: PlayerDetails) {
+        self.player = Some(player);
+    }
+
+    fn player(&self) -> &PlayerDetails {
+        self.player.as_ref().unwrap()
+    }
+}
 
 pub struct ServerInstance {
     game_state: GameState,
     listener: TcpListener,
-    clients: Vec<StreamHandler>,
-    players: Vec<PlayerDetails>,
+    clients: Vec<Client>,
+    current_client: usize,
+    // clients: Vec<StreamHandler>,
+    // players: Vec<PlayerDetails>,
     join_code: String,
 }
 
@@ -39,9 +70,9 @@ impl ServerInstance {
         ServerInstance {
             game_state: GameState::new(),
             listener,
-            clients: Vec::with_capacity(MAX_PLAYERS),
             join_code: "1234".to_string(),
-            players: Vec::with_capacity(MAX_PLAYERS),
+            clients: Vec::with_capacity(MAX_PLAYERS),
+            current_client: 0,
         }
     }
 
@@ -56,40 +87,33 @@ impl ServerInstance {
     /// core gameplay loop starts.
     pub fn start(&mut self) {
         // let num_players = get_num_input("Enter number of players (min. 2, max. 6): ", 2, 6);
-
         // TODO: change back to `num_players` for full application
         self.accept_players(1);
         self.reject_extra_players();
-
         println!("Starting server with join code: {}", self.join_code);
         self.name_players();
         self.game_state.print_all_players();
         self.send_game_state();
         self.randomize_players();
-
         self.start_game_loop();
     }
 
     /// Allows `num_players` clients to join, exits after all players have joined.
     fn accept_players(&mut self, num_players: u8) {
         let mut num_connections = 0;
-
         println!("Accepting players...");
         while num_connections < num_players {
             match self.listener.accept() {
                 Ok((stream, _)) => {
                     let mut handler = StreamHandler::new(stream);
-
                     if let Err(err) = handler.await_request(STATUS_REQUEST) {
                         perror_in_fn("accept_players", err);
                     }
-
                     /* Accept player. */
                     if let Err(err) = handler.send_response(STATUS_RESPONSE_YES) {
                         perror_in_fn("accept_players", err);
                     }
-
-                    self.clients.push(handler);
+                    self.clients.push(Client::new(handler, None));
                     num_connections += 1;
                 }
                 Err(err) => {
@@ -118,14 +142,16 @@ impl ServerInstance {
 
     /// Prompts every user to enter a username and verifies that each username is unique.
     fn name_players(&mut self) {
-        for handler in self.clients.iter_mut() {
+        for client in self.clients.iter_mut() {
+            let handler = client.handler_mut();
             let mut is_accepted = false;
-
+            let mut name = String::new();
             while !is_accepted {
-                let name = ServerInstance::get_client_name(handler);
+                name = ServerInstance::get_client_name(handler);
                 is_accepted =
                     ServerInstance::send_name_status(handler, &mut self.game_state, name.as_str());
             }
+            client.set_player(PlayerDetails::new(name, 100));
         }
     }
 
@@ -171,10 +197,10 @@ impl ServerInstance {
     }
 
     fn send_game_state(&mut self) {
-        for client in self.clients.iter_mut() {
+        for Client { handler, .. } in self.clients.iter_mut() {
             let game_state_response = Response::from_game_state(self.game_state.clone());
             if let Err(err) =
-                client.await_request_send_response(GAME_STATE_REQUEST, &game_state_response)
+                handler.await_request_send_response(GAME_STATE_REQUEST, &game_state_response)
             {
                 perror_in_fn("send_game_state", err);
             }
@@ -185,35 +211,153 @@ impl ServerInstance {
         self.clients.shuffle(&mut thread_rng());
     }
 
+    fn get_client_by_name(&self, name: &str) -> &Client {
+        for client in self.clients.iter() {
+            if client.player().name() == name {
+                return client;
+            }
+        }
+        unreachable!()
+    }
+
+    fn get_client_by_name_mut(&mut self, name: &str) -> &mut Client {
+        for client in self.clients.iter_mut() {
+            if client.player().name() == name {
+                return client;
+            }
+        }
+        unreachable!()
+    }
+
     /// Starts core gameplay loop.
     fn start_game_loop(&mut self) {
-        // Start turn
-        // Get actions (loop)
-        // End turn
-
-        self.start_turn();
+        self.start_current_turn();
         self.start_action_loop();
-        self.game_state.move_next_player();
-
+        self.move_next_player();
         todo!()
     }
 
-    fn start_turn(&mut self) {
-        let turn_player = self.game_state.turn_player();
-        let turn_start = Response::new_turn_start(turn_player.name().to_string());
-        self.response_all(turn_start);
-    }
-
-    fn response_all(&mut self, response: Response) {
-        for client in self.clients.iter_mut() {
-            if let Err(err) = client.await_request_send_response(ACTION_REQUEST, &response) {
-                perror_in_fn("response_all", err);
-            }
+    fn start_current_turn(&mut self) {
+        let turn_player = self.game_state.current_player().to_owned();
+        let client = self.get_client_by_name_mut(turn_player.name());
+        let response = Response::new_turn_start(turn_player.name().to_owned());
+        if let Err(err) = client
+            .handler
+            .await_request_send_response(ACTION_REQUEST, &response)
+        {
+            perror_in_fn("start_current_turn", err);
         }
     }
 
+    // fn response_all_except(&mut self, name: &str, response: &Response) {
+    //     for Client { handler, player } in self.clients.iter_mut() {
+    //         if player.as_ref().unwrap().name() != name {
+    //             if let Err(err) = handler.await_request_send_response(ACTION_REQUEST, response) {
+    //                 perror_in_fn("response_all", err);
+    //             }
+    //         }
+    //     }
+    // }
+
     fn start_action_loop(&mut self) {
         todo!()
+        //     loop {
+        //         let current_client = self.current_client_mut();
+        //         let status = current_client
+        //             .handler
+        //             .send_request_await_response(ACTION_REQUEST, ACTION_RESPONSE);
+        //         let action = match status {
+        //             Ok(response) => match response.response_type() {
+        //                 ResponseType::PlayerAction(action) => action.as_ref().unwrap().to_owned(),
+        //                 _ => unreachable!(),
+        //             },
+        //             Err(err) => {
+        //                 perror_in_fn("start_action_loop", err);
+        //                 Action::default()
+        //             }
+        //         };
+        //         if variant_eq(action.action_type(), &ActionType::TurnEnd) {
+        //             break;
+        //         } else {
+        //             self.handle_action(action);
+        //         }
+        //     }
+    }
+
+    fn handle_action(&mut self, action: Action) {
+        match action.action_type() {
+            ActionType::PlayKing => self.handle_king(&action),
+            ActionType::PlayQueen => self.handle_queen(&action),
+            ActionType::PlayJack => self.handle_jack(),
+            ActionType::PlayNumber => self.handle_number(),
+            ActionType::PlayBlackAce => self.handle_black_ace(),
+            ActionType::PlayRedAce => self.handle_red_ace(),
+            ActionType::TurnEnd => todo!(),
+            ActionType::TurnStart => unreachable!(),
+        }
+    }
+
+    fn handle_king(&mut self, action: &Action) {
+        let to_player = action.to_player();
+        let damage = 10 + action.attachment();
+        let to_player = self.game_state.player_by_name_mut(to_player).unwrap();
+        to_player.set_points(to_player.points() - damage);
+        println!(
+            "ACTION: '{}' played King with {} against {}. '{}' now has {} points.",
+            action.from_player(),
+            action.attachment(),
+            action.to_player(),
+            action.to_player(),
+            to_player.points(),
+        );
+        // self.response_all_except(
+        //     action.from_player(),
+        //     &Response::from_action(action.to_owned()),
+        // );
+    }
+
+    fn handle_queen(&mut self, action: &Action) {
+        let player = self
+            .game_state
+            .player_by_name_mut(action.from_player())
+            .unwrap();
+        let healed_points = 10 + action.attachment();
+        player.set_points(player.points() + healed_points);
+        println!(
+            "ACTION: '{}' played a Queen with {}. '{}' now has {}",
+            player.name(),
+            action.attachment(),
+            player.name(),
+            player.points(),
+        );
+        // self.response_all_except(
+        //     action.from_player(),
+        //     &Response::from_action(action.to_owned()),
+        // );
+    }
+
+    fn handle_jack(&mut self) {
+        todo!()
+    }
+
+    fn handle_number(&mut self) {
+        todo!()
+    }
+
+    fn handle_black_ace(&mut self) {
+        todo!()
+    }
+
+    fn handle_red_ace(&mut self) {
+        todo!()
+    }
+
+    fn move_next_player(&mut self) {
+        self.current_client = (self.current_client + 1) % self.clients.len();
+    }
+
+    fn current_client_mut(&mut self) -> &mut Client {
+        &mut self.clients[self.current_client]
     }
 
     /// This function is for testing purposes only. It blocks the main thread in an

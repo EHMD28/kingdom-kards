@@ -29,6 +29,10 @@ impl PlayerDetails {
     pub fn points(&self) -> u16 {
         self.points
     }
+
+    pub fn set_points(&mut self, points: u16) {
+        self.points = points;
+    }
 }
 
 impl Display for PlayerDetails {
@@ -91,8 +95,20 @@ impl GameState {
         self.players.get(pos).unwrap()
     }
 
-    pub fn turn_player(&self) -> &PlayerDetails {
+    pub fn player_by_name(&self, name: &str) -> Option<&PlayerDetails> {
+        self.players.iter().find(|&player| player.name == name)
+    }
+
+    pub fn player_by_name_mut(&mut self, name: &str) -> Option<&mut PlayerDetails> {
+        self.players.iter_mut().find(|player| player.name == name)
+    }
+
+    pub fn current_player(&self) -> &PlayerDetails {
         self.players.get(self.current_player).unwrap()
+    }
+
+    pub fn current_player_index(&self) -> usize {
+        self.current_player
     }
 
     pub fn move_next_player(&mut self) {
@@ -104,6 +120,12 @@ impl GameState {
         println!("Current Players:");
         for (index, player) in self.players.iter().enumerate() {
             println!("\t{}. {player}", index + 1);
+        }
+    }
+
+    pub fn list_players_with_numbers(&self) {
+        for (index, player) in self.players.iter().enumerate() {
+            println!("{}. {} with {}", index + 1, player.name, player.points);
         }
     }
 

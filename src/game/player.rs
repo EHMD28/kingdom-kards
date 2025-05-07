@@ -5,18 +5,19 @@ use std::panic;
 use crate::game::card::{Card, Suit, Value};
 use crate::server::constants::DECK_SIZE;
 use crate::server::response::{Action, ActionType};
-use crate::server::utils::get_num_input;
+use crate::ui::{get_bool_input, get_num_input};
 
 use rand::seq::SliceRandom;
 use rand::thread_rng;
 
+use super::game_state::GameState;
 
 pub struct Player {
     name: String,
     points: u16,
     hand: Vec<Card>,
     deck: Vec<Card>,
-    discard_pile: Vec<Card>,
+    _discard_pile: Vec<Card>,
 }
 
 impl Player {
@@ -26,12 +27,12 @@ impl Player {
             name: String::new(),
             hand: Vec::with_capacity(DECK_SIZE),
             deck: Vec::with_capacity(DECK_SIZE),
-            discard_pile: Vec::with_capacity(DECK_SIZE),
+            _discard_pile: Vec::with_capacity(DECK_SIZE),
             points: 100,
         };
 
         player.init_deck();
-        player.shuffle_deck();
+        // player.shuffle_deck();
         player.draw_ntimes(5);
 
         player
@@ -42,7 +43,7 @@ impl Player {
             name,
             hand: Vec::with_capacity(DECK_SIZE),
             deck: Vec::with_capacity(DECK_SIZE),
-            discard_pile: Vec::with_capacity(DECK_SIZE),
+            _discard_pile: Vec::with_capacity(DECK_SIZE),
             points: 100,
         };
 
@@ -73,34 +74,38 @@ impl Player {
         self.hand.len()
     }
 
-    pub fn card_in_hand(&self, n: usize) -> &Card {
+    pub fn get_card_in_hand(&self, n: usize) -> &Card {
         if n >= self.hand_size() {
             panic!("Invalid index of hand");
         }
-
-        self.hand.get(n as usize).unwrap()
+        self.hand.get(n).unwrap()
     }
 
     fn init_deck(&mut self) {
-        for suit in [Suit::Spades, Suit::Clubs, Suit::Hearts, Suit::Diamonds] {
-            for value in [
-                Value::Ace,
-                Value::Two,
-                Value::Three,
-                Value::Four,
-                Value::Five,
-                Value::Six,
-                Value::Seven,
-                Value::Eight,
-                Value::Nine,
-                Value::Ten,
-                Value::Jack,
-                Value::Queen,
-                Value::King,
-            ] {
-                self.deck.push(Card::new(suit, value));
-            }
-        }
+        self.deck.push(Card::new(Suit::Spades, Value::King));
+        self.deck.push(Card::new(Suit::Hearts, Value::Seven));
+        self.deck.push(Card::new(Suit::Spades, Value::Five));
+        self.deck.push(Card::new(Suit::Hearts, Value::Eight));
+        self.deck.push(Card::new(Suit::Spades, Value::Ten));
+        // for suit in [Suit::Spades, Suit::Clubs, Suit::Hearts, Suit::Diamonds] {
+        //     for value in [
+        //         Value::Ace,
+        //         Value::Two,
+        //         Value::Three,
+        //         Value::Four,
+        //         Value::Five,
+        //         Value::Six,
+        //         Value::Seven,
+        //         Value::Eight,
+        //         Value::Nine,
+        //         Value::Ten,
+        //         Value::Jack,
+        //         Value::Queen,
+        //         Value::King,
+        //     ] {
+        //         self.deck.push(Card::new(suit, value));
+        //     }
+        // }
     }
 
     fn shuffle_deck(&mut self) {
@@ -125,13 +130,52 @@ impl Player {
         }
     }
 
-    pub fn get_action(&self) -> Action {
+    pub fn get_action(&self, game_state: &GameState) -> Action {
         self.print_hand();
-        let choosen_card = get_num_input("Choose a card", 0, self.hand_size() as i32);
-        let choosen_card = self.card_in_hand(choosen_card as usize);
+        let choosen_card = get_num_input("Choose a card: ", 1, self.hand_size() as i32);
+        let choosen_card = self.get_card_in_hand((choosen_card - 1) as usize);
         let action_type = ActionType::from_card(choosen_card);
+        let mut attachment: u16 = 0;
+        match action_type {
+            ActionType::PlayKing | ActionType::PlayQueen => {
+                if let Some(value) = self.get_attachment() {
+                    attachment = value;
+                }
+            }
+            ActionType::PlayJack => todo!(),
+            ActionType::PlayNumber => todo!(),
+            ActionType::PlayBlackAce => todo!(),
+            ActionType::PlayRedAce => todo!(),
+            _ => unreachable!(),
+        }
 
-        todo!()
+        game_state.list_players_with_numbers();
+        let to_player = get_num_input("Choose a player: ", 1, game_state.num_players() as i32);
+        let to_player = game_state.get_player((to_player - 1) as usize);
+
+        Action::new(
+            action_type,
+            attachment,
+            self.name().to_owned(),
+            to_player.name().to_owned(),
+        )
+    }
+
+    fn get_attachment(&self) -> Option<u16> {
+        let use_attachment = get_bool_input("Attachment ['yes' or 'no']? ", "yes", "no");
+        if use_attachment {
+            loop {
+                let choosen_card =
+                    get_num_input("Choose a number: ", 0, self.hand_size() as i32) as usize;
+                let chosen_card = self.get_card_in_hand(choosen_card);
+                if chosen_card.value().is_number() {
+                    let attachment = chosen_card.value().to_number_value();
+                    return Some(attachment);
+                }
+            }
+        } else {
+            None
+        }
     }
 
     pub fn _print_deck(&self) {
@@ -142,7 +186,7 @@ impl Player {
 
     pub fn print_hand(&self) {
         for (i, card) in self.hand.iter().enumerate() {
-            println!("{}. {card}", i + 1);
+            println!("{}. {}", i + 1, card.to_colored_text());
         }
     }
 
