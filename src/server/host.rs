@@ -1,7 +1,7 @@
 //! This module contains a set of functions for creating a server and
 //! handling clients.
 
-use std::{mem::zeroed, net::TcpListener, thread, time::Duration};
+use std::{net::TcpListener, thread, time::Duration};
 
 use rand::{seq::SliceRandom, thread_rng};
 

@@ -4,7 +4,7 @@
 
 use std::fmt::Display;
 
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, PartialEq, Eq)]
 pub enum Suit {
     Spades,
     Clubs,
@@ -24,7 +24,7 @@ impl Display for Suit {
     }
 }
 
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, PartialEq, Eq)]
 pub enum Value {
     Ace,
     Two,
@@ -109,6 +109,7 @@ impl Display for Color {
     }
 }
 
+#[derive(Clone, Copy, PartialEq, Eq)]
 pub struct Card {
     pub suit: Suit,
     pub value: Value,

@@ -2,7 +2,7 @@
 
 use std::panic;
 
-use crate::game::card::{Card, Suit, Value};
+use crate::game::card::{self, Card, Suit, Value};
 use crate::server::constants::DECK_SIZE;
 use crate::server::response::{Action, ActionType};
 use crate::ui::{get_bool_input, get_num_input};
@@ -33,7 +33,7 @@ impl Player {
 
         player.init_deck();
         // player.shuffle_deck();
-        player.draw_ntimes(5);
+        player.draw_n_times(5);
 
         player
     }
@@ -49,7 +49,7 @@ impl Player {
 
         player.init_deck();
         player.shuffle_deck();
-        player.draw_ntimes(5);
+        player.draw_n_times(5);
 
         player
     }
@@ -79,6 +79,19 @@ impl Player {
             panic!("Invalid index of hand");
         }
         self.hand.get(n).unwrap()
+    }
+
+    // pub fn remove_card_in_hand(&mut self, n: usize) -> Option<()> {
+    //     todo!()
+    // }
+
+    pub fn remove_card_from_hand(&mut self, card: &Card) -> Option<()> {
+        if let Some(index) = self.hand.iter().position(|c| c == card) {
+            self.hand.remove(index);
+            Some(())
+        } else {
+            None
+        }
     }
 
     fn init_deck(&mut self) {
@@ -124,36 +137,42 @@ impl Player {
         }
     }
 
-    pub fn draw_ntimes(&mut self, n: u8) {
+    pub fn draw_n_times(&mut self, n: u8) {
         for _ in 0..n {
             self.draw_card();
         }
     }
 
-    pub fn get_action(&self, game_state: &GameState) -> Action {
+    pub fn get_action(&mut self, game_state: &GameState) -> Action {
+        // Get action.
         println!("0. End Turn");
         self.print_hand();
         let choosen_action = get_num_input("Choose an action: ", 0, self.hand_size() as i32);
         if choosen_action == 0 {
             return Action::new(ActionType::TurnEnd, 0, self.name.clone(), String::new());
         }
-        let choosen_card = self.get_card_in_hand((choosen_action - 1) as usize);
-        let action_type = ActionType::from_card(choosen_card);
-        let attachment: u16 = match action_type {
-            ActionType::PlayKing | ActionType::PlayQueen => {
-                self.get_attachment().unwrap_or_default()
-            }
-            ActionType::PlayJack => todo!(),
-            ActionType::PlayNumber => todo!(),
-            ActionType::PlayBlackAce => todo!(),
-            ActionType::PlayRedAce => todo!(),
-            _ => unreachable!(),
-        };
-
+        let action_card = self
+            .get_card_in_hand((choosen_action - 1) as usize)
+            .to_owned();
+        let action_type = ActionType::from_card(&action_card);
+        // Get attachment.
+        let mut attachment: u16 = 0;
+        let attachment_card = self.get_attachment();
+        if matches!(action_type, ActionType::PlayKing | ActionType::PlayQueen)
+            && attachment_card.is_some()
+        {
+            let card = attachment_card.unwrap();
+            attachment = card.value.to_number_value();
+        }
         game_state.list_players_with_numbers();
         let to_player = get_num_input("Choose a player: ", 1, game_state.num_players() as i32);
         let to_player = game_state.get_player((to_player - 1) as usize);
-
+        // Remove card from hand.
+        self.remove_card_from_hand(&action_card);
+        if let Some(card) = attachment_card {
+            self.remove_card_from_hand(&card);
+        }
+        // Return.
         Action::new(
             action_type,
             attachment,
@@ -162,16 +181,15 @@ impl Player {
         )
     }
 
-    fn get_attachment(&self) -> Option<u16> {
-        let use_attachment = get_bool_input("Attachment ['yes' or 'no']? ", "yes", "no");
+    fn get_attachment(&self) -> Option<Card> {
+        let use_attachment = get_bool_input("Attachment? ['yes' or 'no']: ", "yes", "no");
         if use_attachment {
             loop {
                 let choosen_card =
                     get_num_input("Choose a number: ", 1, (self.hand_size() + 1) as i32) as usize;
                 let chosen_card = self.get_card_in_hand(choosen_card - 1);
                 if chosen_card.value().is_number() {
-                    let attachment = chosen_card.value().to_number_value();
-                    return Some(attachment);
+                    return Some(chosen_card.to_owned());
                 }
             }
         } else {
