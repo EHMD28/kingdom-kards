@@ -82,11 +82,11 @@ impl Player {
     }
 
     fn init_deck(&mut self) {
-        self.deck.push(Card::new(Suit::Spades, Value::King));
         self.deck.push(Card::new(Suit::Hearts, Value::Seven));
         self.deck.push(Card::new(Suit::Spades, Value::Five));
         self.deck.push(Card::new(Suit::Hearts, Value::Eight));
-        self.deck.push(Card::new(Suit::Spades, Value::Ten));
+        self.deck.push(Card::new(Suit::Spades, Value::Queen));
+        self.deck.push(Card::new(Suit::Spades, Value::King));
         // for suit in [Suit::Spades, Suit::Clubs, Suit::Hearts, Suit::Diamonds] {
         //     for value in [
         //         Value::Ace,
@@ -131,23 +131,24 @@ impl Player {
     }
 
     pub fn get_action(&self, game_state: &GameState) -> Action {
+        println!("0. End Turn");
         self.print_hand();
-        let choosen_card = get_num_input("Choose a card: ", 1, self.hand_size() as i32);
-        let choosen_card = self.get_card_in_hand((choosen_card - 1) as usize);
+        let choosen_action = get_num_input("Choose an action: ", 0, self.hand_size() as i32);
+        if choosen_action == 0 {
+            return Action::new(ActionType::TurnEnd, 0, self.name.clone(), String::new());
+        }
+        let choosen_card = self.get_card_in_hand((choosen_action - 1) as usize);
         let action_type = ActionType::from_card(choosen_card);
-        let mut attachment: u16 = 0;
-        match action_type {
+        let attachment: u16 = match action_type {
             ActionType::PlayKing | ActionType::PlayQueen => {
-                if let Some(value) = self.get_attachment() {
-                    attachment = value;
-                }
+                self.get_attachment().unwrap_or_default()
             }
             ActionType::PlayJack => todo!(),
             ActionType::PlayNumber => todo!(),
             ActionType::PlayBlackAce => todo!(),
             ActionType::PlayRedAce => todo!(),
             _ => unreachable!(),
-        }
+        };
 
         game_state.list_players_with_numbers();
         let to_player = get_num_input("Choose a player: ", 1, game_state.num_players() as i32);
@@ -166,8 +167,8 @@ impl Player {
         if use_attachment {
             loop {
                 let choosen_card =
-                    get_num_input("Choose a number: ", 0, self.hand_size() as i32) as usize;
-                let chosen_card = self.get_card_in_hand(choosen_card);
+                    get_num_input("Choose a number: ", 1, (self.hand_size() + 1) as i32) as usize;
+                let chosen_card = self.get_card_in_hand(choosen_card - 1);
                 if chosen_card.value().is_number() {
                     let attachment = chosen_card.value().to_number_value();
                     return Some(attachment);

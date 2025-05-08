@@ -81,6 +81,13 @@ impl ServerInstance {
         &self.game_state
     }
 
+    fn turn_client_mut(&mut self) -> Option<&mut Client> {
+        let turn_player = self.game_state.current_player();
+        self.clients
+            .iter_mut()
+            .find(|c| c.player().name() == turn_player.name())
+    }
+
     /// Starts up server operations. First, the server accepts the number
     /// of players (between 2 and 6). Next, players will enter their usernames
     /// and the server will validate that the names are unique. After that, the
@@ -220,7 +227,7 @@ impl ServerInstance {
         unreachable!()
     }
 
-    fn get_client_by_name_mut(&mut self, name: &str) -> &mut Client {
+    fn client_by_name_mut(&mut self, name: &str) -> &mut Client {
         for client in self.clients.iter_mut() {
             if client.player().name() == name {
                 return client;
@@ -239,7 +246,7 @@ impl ServerInstance {
 
     fn start_current_turn(&mut self) {
         let turn_player = self.game_state.current_player().to_owned();
-        let client = self.get_client_by_name_mut(turn_player.name());
+        let client = self.client_by_name_mut(turn_player.name());
         let response = Response::new_turn_start(turn_player.name().to_owned());
         if let Err(err) = client
             .handler
@@ -259,41 +266,44 @@ impl ServerInstance {
     //     }
     // }
 
-    fn start_action_loop(&mut self) {
-        todo!()
-        //     loop {
-        //         let current_client = self.current_client_mut();
-        //         let status = current_client
-        //             .handler
-        //             .send_request_await_response(ACTION_REQUEST, ACTION_RESPONSE);
-        //         let action = match status {
-        //             Ok(response) => match response.response_type() {
-        //                 ResponseType::PlayerAction(action) => action.as_ref().unwrap().to_owned(),
-        //                 _ => unreachable!(),
-        //             },
-        //             Err(err) => {
-        //                 perror_in_fn("start_action_loop", err);
-        //                 Action::default()
-        //             }
-        //         };
-        //         if variant_eq(action.action_type(), &ActionType::TurnEnd) {
-        //             break;
-        //         } else {
-        //             self.handle_action(action);
-        //         }
-        //     }
+    fn await_player_action(&mut self) -> Action {
+        let client = self.current_client_mut();
+        let status = client
+            .handler
+            .send_request_await_response(ACTION_REQUEST, ACTION_RESPONSE);
+        let action = match status {
+            Ok(response) => match response.response_type() {
+                ResponseType::PlayerAction(action) => action.as_ref().unwrap().to_owned(),
+                _ => unreachable!(),
+            },
+            Err(err) => {
+                perror_in_fn("host.rs::await_player_action", err);
+                Action::default()
+            }
+        };
+        action
     }
 
-    fn handle_action(&mut self, action: Action) {
+    fn start_action_loop(&mut self) {
+        loop {
+            let action = self.await_player_action();
+            if variant_eq(action.action_type(), &ActionType::TurnEnd) {
+                break;
+            } else {
+                self.handle_action(&action);
+            }
+        }
+    }
+
+    fn handle_action(&mut self, action: &Action) {
         match action.action_type() {
-            ActionType::PlayKing => self.handle_king(&action),
-            ActionType::PlayQueen => self.handle_queen(&action),
+            ActionType::PlayKing => self.handle_king(action),
+            ActionType::PlayQueen => self.handle_queen(action),
             ActionType::PlayJack => self.handle_jack(),
             ActionType::PlayNumber => self.handle_number(),
             ActionType::PlayBlackAce => self.handle_black_ace(),
             ActionType::PlayRedAce => self.handle_red_ace(),
-            ActionType::TurnEnd => todo!(),
-            ActionType::TurnStart => unreachable!(),
+            ActionType::TurnEnd | ActionType::TurnStart => unreachable!(),
         }
     }
 

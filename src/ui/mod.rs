@@ -19,8 +19,7 @@ pub fn get_input(prompt: &str, max_len: usize) -> String {
 }
 
 /// Prompts the user to enter a number. This function will keep prompting
-/// the user until they enter a number that fits within the range
-/// restrictions.
+/// the user until they enter a number that fits within the range `[a, b]`.
 pub fn get_num_input(prompt: &str, min: i32, max: i32) -> i32 {
     let stdin = io::stdin();
     let mut stdout = io::stdout();

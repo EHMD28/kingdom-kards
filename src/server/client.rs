@@ -230,12 +230,11 @@ impl ClientInstance {
         let handler = self.handler.as_mut().unwrap();
         let turn_player = ClientInstance::get_turn_start(handler);
         println!("Staring {turn_player}'s Turn");
-        // println!("Turn player is: {turn_player}");
-        // if turn_player == self.player.name() {
-        //     self.start_my_turn(game_state);
-        // } else {
-        //     self.start_other_turn();
-        // }
+        if turn_player == self.player.name() {
+            self.start_my_turn(game_state);
+        } else {
+            self.start_other_turn();
+        }
     }
 
     /// Get action from server signifying the start of a player's turn.

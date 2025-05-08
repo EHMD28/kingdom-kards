@@ -108,7 +108,7 @@ impl StreamHandler {
         let stream = self.reader.get_mut();
         stream.write_all(response)?;
         stream.flush()?;
-        println!("\x1b[33mSent response of type '{}'\x1b[0m", response_str);
+        print_internal_info(&format!("Sent response of type '{}'", response_str));
         Ok(())
     }
 
@@ -117,17 +117,13 @@ impl StreamHandler {
     pub fn await_request(&mut self, request: &Request) -> Result<Request, ServerError> {
         let request_type = request.request_type().to_owned();
         let received = &mut String::new();
-
-        println!("\x1b[33mAwaiting request of type {request_type}\x1b[0m");
-        // received.clear();
+        print_internal_info(&format!("Awaiting request of type {request_type}"));
         if let Err(err) = self.reader.read_line(received) {
             return Err(ServerError::IoError(err));
         }
         remove_newline(received);
-
-        println!("\x1b[33mReceived: {received}\x1b[0m");
+        print_internal_info(&format!("Received: {received}"));
         let request = Request::from_str(received);
-
         match request {
             Ok(request) => {
                 if variant_eq(request.request_type(), &request_type) {
@@ -151,7 +147,7 @@ impl StreamHandler {
         let stream = self.reader.get_mut();
         stream.write_all(request)?;
         stream.flush()?;
-        println!("\x1b[33mSent request of type '{}'\x1b[0m", request_str);
+        print_internal_info(&format!("Sent request of type '{request_str}'"));
         Ok(())
     }
 
@@ -161,14 +157,14 @@ impl StreamHandler {
         let response_type = response.response_type().to_owned();
         let received = &mut String::new();
 
-        println!("\x1b[33mAwaiting response of type {response_type}\x1b[0m");
+        print_internal_info(&format!("Awaiting response of type {response_type}"));
         /* Using read_line() because requests/responses are separated by newline delimeter */
         // received.clear();
         if let Err(e) = self.reader.read_line(received) {
             return Err(ServerError::IoError(e));
         }
         remove_newline(received);
-        println!("\x1b[33mReceived: {received}\x1b[0m");
+        print_internal_info(&format!("Received: {received}"));
         let response = Response::from_str(received);
         match response {
             Ok(request) => {
@@ -232,4 +228,8 @@ impl StreamHandler {
 
         Ok(())
     }
+}
+
+fn print_internal_info(s: &str) {
+    println!("\x1b[34m{s}\x1b[0m");
 }
