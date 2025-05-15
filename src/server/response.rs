@@ -167,8 +167,8 @@ impl Action {
     }
 
     /// Returns a reference `self.attachment`.
-    pub fn attachment(&self) -> &u16 {
-        &self.attachment
+    pub fn attachment(&self) -> u16 {
+        self.attachment
     }
 
     /// Returns a reference to `self.from_player`.
@@ -179,6 +179,19 @@ impl Action {
     /// Returns a reference to `self.to_player`.
     pub fn to_player(&self) -> &str {
         &self.to_player
+    }
+
+    pub fn set_self(
+        &mut self,
+        action_type: ActionType,
+        attachment: u16,
+        from_player: String,
+        to_player: String,
+    ) {
+        self.action_type = action_type;
+        self.attachment = attachment;
+        self.from_player = from_player;
+        self.to_player = to_player;
     }
 }
 

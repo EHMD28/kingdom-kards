@@ -6,6 +6,7 @@ use crate::game::card::{self, Card, Suit, Value};
 use crate::server::constants::DECK_SIZE;
 use crate::server::response::{Action, ActionType};
 use crate::ui::{get_bool_input, get_num_input};
+use crate::utils::variant_eq;
 
 use rand::seq::SliceRandom;
 use rand::thread_rng;
@@ -33,7 +34,7 @@ impl Player {
 
         player.init_deck();
         // player.shuffle_deck();
-        player.draw_n_times(5);
+        player.draw_n_times(6);
 
         player
     }
@@ -81,6 +82,10 @@ impl Player {
         self.hand.get(n).unwrap()
     }
 
+    pub fn get_card_with_prompt(&self) -> &Card {
+        todo!()
+    }
+
     // pub fn remove_card_in_hand(&mut self, n: usize) -> Option<()> {
     //     todo!()
     // }
@@ -98,7 +103,8 @@ impl Player {
         self.deck.push(Card::new(Suit::Hearts, Value::Seven));
         self.deck.push(Card::new(Suit::Spades, Value::Five));
         self.deck.push(Card::new(Suit::Hearts, Value::Eight));
-        self.deck.push(Card::new(Suit::Spades, Value::Queen));
+        self.deck.push(Card::new(Suit::Spades, Value::Two));
+        self.deck.push(Card::new(Suit::Hearts, Value::Queen));
         self.deck.push(Card::new(Suit::Spades, Value::King));
         // for suit in [Suit::Spades, Suit::Clubs, Suit::Hearts, Suit::Diamonds] {
         //     for value in [
@@ -144,47 +150,102 @@ impl Player {
     }
 
     pub fn get_action(&mut self, game_state: &GameState) -> Action {
-        // Get action.
-        println!("0. End Turn");
-        self.print_hand();
-        let choosen_action = get_num_input("Choose an action: ", 0, self.hand_size() as i32);
-        if choosen_action == 0 {
-            return Action::new(ActionType::TurnEnd, 0, self.name.clone(), String::new());
+        // TODO: Add getting number actions.
+        let mut ret_action = Action::default();
+        // Prints the cards in players hand as well as option to end turn.
+        self.print_options();
+        // Prompts the player to choose a card from their hand.
+        if let Some(action_card) = self.choose_card() {
+            self.remove_card_from_hand(&action_card);
+            if action_card.value().is_number() {
+                self.play_number(&action_card);
+                ret_action.set_self(
+                    ActionType::PlayNumber,
+                    action_card.value().to_number_value(),
+                    self.name.to_owned(),
+                    String::new(),
+                );
+            } else if matches!(action_card.value(), Value::King | Value::Queen) {
+                let attachment = self.play_king_queen(&action_card);
+                let action_type = ActionType::from_card(&action_card);
+                let to_player = game_state.get_player_with_prompt();
+                ret_action.set_self(
+                    action_type,
+                    attachment,
+                    self.name.to_owned(),
+                    to_player.name().to_owned(),
+                );
+            } else {
+                todo!()
+            }
+        } else {
+            ret_action.set_self(ActionType::TurnEnd, 0, self.name.to_owned(), String::new());
         }
-        let action_card = self
-            .get_card_in_hand((choosen_action - 1) as usize)
-            .to_owned();
-        let action_type = ActionType::from_card(&action_card);
-        // Get attachment.
-        let mut attachment: u16 = 0;
-        let attachment_card = self.get_attachment();
-        if matches!(action_type, ActionType::PlayKing | ActionType::PlayQueen)
-            && attachment_card.is_some()
-        {
-            let card = attachment_card.unwrap();
-            attachment = card.value.to_number_value();
-        }
-        game_state.list_players_with_numbers();
-        let to_player = get_num_input("Choose a player: ", 1, game_state.num_players() as i32);
-        let to_player = game_state.get_player((to_player - 1) as usize);
-        // Remove card from hand.
-        self.remove_card_from_hand(&action_card);
-        if let Some(card) = attachment_card {
-            self.remove_card_from_hand(&card);
-        }
-        // Return.
-        Action::new(
-            action_type,
-            attachment,
-            self.name().to_owned(),
-            to_player.name().to_owned(),
-        )
+        ret_action
     }
 
-    fn get_attachment(&self) -> Option<Card> {
+    fn play_number(&mut self, card: &Card) {
+        let num = card.value().to_number_value();
+        for _ in 0..num {
+            let chosen = self.choose_number();
+            self.remove_card_from_hand(&chosen);
+        }
+    }
+
+    fn play_king_queen(&mut self, card: &Card) -> u16 {
+        if let Some(attachment_card) = self.choose_attacment() {
+            let value = attachment_card.value().to_number_value();
+            self.remove_card_from_hand(&attachment_card);
+            value
+        }
+        // Player did not choose an attachment.
+        else {
+            0
+        }
+    }
+
+    fn print_options(&self) {
+        println!("0. End Turn");
+        self.print_hand();
+    }
+
+    fn choose_card(&self) -> Option<Card> {
+        let choosen_action = get_num_input("Choose an action: ", 0, self.hand_size() as i32);
+        if choosen_action == 0 {
+            None
+        } else {
+            Some(
+                self.get_card_in_hand((choosen_action - 1) as usize)
+                    .to_owned(),
+            )
+        }
+    }
+
+    fn choose_card_with_prompt(&self, prompt: &str) -> Card {
+        let choosen_action = get_num_input(prompt, 0, self.hand_size() as i32);
+        self.get_card_in_hand((choosen_action - 1) as usize)
+            .to_owned()
+    }
+
+    // fn get_player_action_attachment(&self, action_card: &Card) -> Option<(Card, u16)> {
+    //     let action_type = ActionType::from_card(action_card);
+    //     let attachment_card = self.choose_attacment();
+    //     if matches!(action_type, ActionType::PlayKing | ActionType::PlayQueen)
+    //         && attachment_card.is_some()
+    //     {
+    //         let card = attachment_card.unwrap();
+    //         let attachment = card.value.to_number_value();
+    //         Some((card, attachment))
+    //     } else {
+    //         None
+    //     }
+    // }
+
+    fn choose_attacment(&self) -> Option<Card> {
         let use_attachment = get_bool_input("Attachment? ['yes' or 'no']: ", "yes", "no");
         if use_attachment {
             loop {
+                self.print_hand();
                 let choosen_card =
                     get_num_input("Choose a number: ", 1, (self.hand_size() + 1) as i32) as usize;
                 let chosen_card = self.get_card_in_hand(choosen_card - 1);
@@ -194,6 +255,16 @@ impl Player {
             }
         } else {
             None
+        }
+    }
+
+    fn choose_number(&self) -> Card {
+        self.print_hand();
+        loop {
+            let card = self.choose_card_with_prompt("Choose card to discard: ");
+            if card.value().is_number() {
+                return card;
+            }
         }
     }
 

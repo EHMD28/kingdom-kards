@@ -271,16 +271,22 @@ impl ClientInstance {
 
         loop {
             let action = self.player.get_action(game_state);
-            self.send_action_to_server(action);
+            // if variant_eq(action.action_type(), &ActionType::PlayNumber) {
+            //     self.player.play_number(&action);
+            // }
+            self.send_action_to_server(&action);
+            if variant_eq(action.action_type(), &ActionType::TurnEnd) {
+                break;
+            }
         }
 
         todo!()
     }
 
-    fn send_action_to_server(&mut self, action: Action) {
+    fn send_action_to_server(&mut self, action: &Action) {
         let handler = self.handler.as_mut().unwrap();
-        if let Err(err) =
-            handler.await_request_send_response(ACTION_REQUEST, &Response::from_action(action))
+        if let Err(err) = handler
+            .await_request_send_response(ACTION_REQUEST, &Response::from_action(action.to_owned()))
         {
             perror_in_fn("send_action_to_server", err);
         }

@@ -4,7 +4,7 @@
 
 use std::fmt::Display;
 
-use crate::server::constants::MAX_PLAYERS;
+use crate::{server::constants::MAX_PLAYERS, ui::get_num_input};
 
 use super::player::Player;
 
@@ -93,6 +93,12 @@ impl GameState {
         }
 
         self.players.get(pos).unwrap()
+    }
+
+    pub fn get_player_with_prompt(&self) -> &PlayerDetails {
+        self.print_all_players();
+        let player_pos = get_num_input("Choose a player: ", 1, self.num_players() as i32);
+        self.get_player((player_pos - 1) as usize)
     }
 
     pub fn player_by_name(&self, name: &str) -> Option<&PlayerDetails> {
