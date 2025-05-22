@@ -7,6 +7,7 @@
 //! interpereted client side.
 
 pub mod client;
+pub mod commentator;
 pub mod constants;
 pub mod host;
 pub mod request;

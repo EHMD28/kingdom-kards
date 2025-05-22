@@ -2,7 +2,6 @@
 //! For the most part, this includes functions that accept and validate user
 //! input.  
 
-use std::io::{self, Write};
 
 use crate::ui::get_num_input;
 

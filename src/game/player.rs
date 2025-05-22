@@ -2,11 +2,10 @@
 
 use std::panic;
 
-use crate::game::card::{self, Card, Suit, Value};
+use crate::game::card::{Card, Suit, Value};
 use crate::server::constants::DECK_SIZE;
 use crate::server::response::{Action, ActionType};
 use crate::ui::{get_bool_input, get_num_input};
-use crate::utils::variant_eq;
 
 use rand::seq::SliceRandom;
 use rand::thread_rng;
@@ -100,31 +99,31 @@ impl Player {
     }
 
     fn init_deck(&mut self) {
+        for suit in [Suit::Spades, Suit::Clubs, Suit::Hearts, Suit::Diamonds] {
+            for value in [
+                Value::Ace,
+                Value::Two,
+                Value::Three,
+                Value::Four,
+                Value::Five,
+                Value::Six,
+                Value::Seven,
+                Value::Eight,
+                Value::Nine,
+                Value::Ten,
+                Value::Jack,
+                Value::Queen,
+                Value::King,
+            ] {
+                self.deck.push(Card::new(suit, value));
+            }
+        }
         self.deck.push(Card::new(Suit::Hearts, Value::Seven));
         self.deck.push(Card::new(Suit::Spades, Value::Five));
         self.deck.push(Card::new(Suit::Hearts, Value::Eight));
         self.deck.push(Card::new(Suit::Spades, Value::Two));
         self.deck.push(Card::new(Suit::Hearts, Value::Queen));
         self.deck.push(Card::new(Suit::Spades, Value::King));
-        // for suit in [Suit::Spades, Suit::Clubs, Suit::Hearts, Suit::Diamonds] {
-        //     for value in [
-        //         Value::Ace,
-        //         Value::Two,
-        //         Value::Three,
-        //         Value::Four,
-        //         Value::Five,
-        //         Value::Six,
-        //         Value::Seven,
-        //         Value::Eight,
-        //         Value::Nine,
-        //         Value::Ten,
-        //         Value::Jack,
-        //         Value::Queen,
-        //         Value::King,
-        //     ] {
-        //         self.deck.push(Card::new(suit, value));
-        //     }
-        // }
     }
 
     fn shuffle_deck(&mut self) {
@@ -149,50 +148,71 @@ impl Player {
         }
     }
 
-    pub fn get_action(&mut self, game_state: &GameState) -> Action {
-        // TODO: Add getting number actions.
-        let mut ret_action = Action::default();
-        // Prints the cards in players hand as well as option to end turn.
-        self.print_options();
+    pub fn get_action(&mut self, game_state: &GameState) -> Option<Action> {
         // Prompts the player to choose a card from their hand.
         if let Some(action_card) = self.choose_card() {
-            self.remove_card_from_hand(&action_card);
+            // If the card is a number, the player discards the amount of that number then draws the
+            // same amount as that number.
             if action_card.value().is_number() {
-                self.play_number(&action_card);
-                ret_action.set_self(
-                    ActionType::PlayNumber,
-                    action_card.value().to_number_value(),
-                    self.name.to_owned(),
-                    String::new(),
-                );
-            } else if matches!(action_card.value(), Value::King | Value::Queen) {
-                let attachment = self.play_king_queen(&action_card);
-                let action_type = ActionType::from_card(&action_card);
-                let to_player = game_state.get_player_with_prompt();
-                ret_action.set_self(
-                    action_type,
-                    attachment,
-                    self.name.to_owned(),
-                    to_player.name().to_owned(),
-                );
+                self.handle_number(&action_card)
+            }
+            // If the card is a King or Queen, then the player is prompted to add an attachment.
+            else if matches!(action_card.value(), Value::King | Value::Queen) {
+                Some(self.handle_king_queen(&action_card, game_state))
             } else {
-                todo!()
+                None
             }
         } else {
-            ret_action.set_self(ActionType::TurnEnd, 0, self.name.to_owned(), String::new());
-        }
-        ret_action
-    }
-
-    fn play_number(&mut self, card: &Card) {
-        let num = card.value().to_number_value();
-        for _ in 0..num {
-            let chosen = self.choose_number();
-            self.remove_card_from_hand(&chosen);
+            None
         }
     }
 
-    fn play_king_queen(&mut self, card: &Card) -> u16 {
+    fn handle_number(&mut self, action_card: &Card) -> Option<Action> {
+        if self.play_number(action_card).is_some() {
+            Some(Action::new(
+                ActionType::PlayNumber,
+                action_card.value().to_number_value(),
+                self.name.to_owned(),
+                String::new(),
+            ))
+        } else {
+            None
+        }
+    }
+
+    fn handle_king_queen(&mut self, action_card: &Card, game_state: &GameState) -> Action {
+        let attachment = self.play_king_queen();
+        let action_type = ActionType::from_card(action_card);
+        let to_player = game_state.get_player_with_prompt();
+        self.remove_card_from_hand(action_card);
+        Action::new(
+            action_type,
+            attachment,
+            self.name.to_owned(),
+            to_player.name().to_owned(),
+        )
+    }
+
+    fn play_number(&mut self, card: &Card) -> Option<()> {
+        self.remove_card_from_hand(card);
+        let num_value = card.value().to_number_value();
+        if (num_value as usize) > self.hand().len() {
+            println!("Invalid action! Number exceeds hand size.");
+            None
+        } else {
+            let mut num_discarded = 0;
+            while num_discarded < num_value {
+                if let Some(chosen) = self.choose_card() {
+                    self.remove_card_from_hand(&chosen);
+                    num_discarded += 1;
+                }
+            }
+            self.draw_n_times(num_value as u8);
+            Some(())
+        }
+    }
+
+    fn play_king_queen(&mut self) -> u16 {
         if let Some(attachment_card) = self.choose_attacment() {
             let value = attachment_card.value().to_number_value();
             self.remove_card_from_hand(&attachment_card);
@@ -210,7 +230,8 @@ impl Player {
     }
 
     fn choose_card(&self) -> Option<Card> {
-        let choosen_action = get_num_input("Choose an action: ", 0, self.hand_size() as i32);
+        self.print_options();
+        let choosen_action = get_num_input("Choose a card: ", 0, self.hand_size() as i32);
         if choosen_action == 0 {
             None
         } else {
@@ -221,11 +242,11 @@ impl Player {
         }
     }
 
-    fn choose_card_with_prompt(&self, prompt: &str) -> Card {
-        let choosen_action = get_num_input(prompt, 0, self.hand_size() as i32);
-        self.get_card_in_hand((choosen_action - 1) as usize)
-            .to_owned()
-    }
+    // fn choose_card_with_prompt(&self, prompt: &str) -> Card {
+    //     let choosen_action = get_num_input(prompt, 0, self.hand_size() as i32);
+    //     self.get_card_in_hand((choosen_action - 1) as usize)
+    //         .to_owned()
+    // }
 
     // fn get_player_action_attachment(&self, action_card: &Card) -> Option<(Card, u16)> {
     //     let action_type = ActionType::from_card(action_card);
@@ -258,15 +279,15 @@ impl Player {
         }
     }
 
-    fn choose_number(&self) -> Card {
-        self.print_hand();
-        loop {
-            let card = self.choose_card_with_prompt("Choose card to discard: ");
-            if card.value().is_number() {
-                return card;
-            }
-        }
-    }
+    // fn choose_number(&self) -> Card {
+    //     self.print_hand();
+    //     loop {
+    //         let card = self.choose_card_with_prompt("Choose card to discard: ");
+    //         if card.value().is_number() {
+    //             return card;
+    //         }
+    //     }
+    // }
 
     pub fn _print_deck(&self) {
         for card in &self.deck {

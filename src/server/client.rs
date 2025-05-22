@@ -270,16 +270,13 @@ impl ClientInstance {
         */
 
         loop {
-            let action = self.player.get_action(game_state);
-            // if variant_eq(action.action_type(), &ActionType::PlayNumber) {
-            //     self.player.play_number(&action);
-            // }
-            self.send_action_to_server(&action);
-            if variant_eq(action.action_type(), &ActionType::TurnEnd) {
-                break;
+            if let Some(action) = self.player.get_action(game_state) {
+                self.send_action_to_server(&action);
+                if variant_eq(action.action_type(), &ActionType::TurnEnd) {
+                    break;
+                }
             }
         }
-
         todo!()
     }
 

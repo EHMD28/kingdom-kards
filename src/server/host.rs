@@ -8,11 +8,10 @@ use rand::{seq::SliceRandom, thread_rng};
 use crate::{
     game::game_state::{GameState, PlayerDetails},
     server::constants::{STATUS_REQUEST, STATUS_RESPONSE_YES},
-    utils::{clear_screen, perror_in_fn, variant_eq},
+    utils::{perror_in_fn, variant_eq},
 };
 
 use super::{
-    client,
     constants::{
         ACTION_REQUEST, ACTION_RESPONSE, GAME_STATE_REQUEST, MAX_PLAYERS, NAME_REQUEST,
         NAME_RESPONSE, STATUS_RESPONSE_NO,
@@ -218,7 +217,7 @@ impl ServerInstance {
         self.clients.shuffle(&mut thread_rng());
     }
 
-    fn get_client_by_name(&self, name: &str) -> &Client {
+    fn client_by_name(&self, name: &str) -> &Client {
         for client in self.clients.iter() {
             if client.player().name() == name {
                 return client;
@@ -300,7 +299,7 @@ impl ServerInstance {
             ActionType::PlayKing => self.handle_king(action),
             ActionType::PlayQueen => self.handle_queen(action),
             ActionType::PlayJack => self.handle_jack(),
-            ActionType::PlayNumber => self.handle_number(),
+            ActionType::PlayNumber => self.handle_number(action),
             ActionType::PlayBlackAce => self.handle_black_ace(),
             ActionType::PlayRedAce => self.handle_red_ace(),
             ActionType::TurnEnd | ActionType::TurnStart => unreachable!(),
@@ -350,8 +349,18 @@ impl ServerInstance {
         todo!()
     }
 
-    fn handle_number(&mut self) {
-        todo!()
+    fn handle_number(&mut self, action: &Action) {
+        let player = self
+            .game_state
+            .player_by_name_mut(action.from_player())
+            .unwrap();
+        println!(
+            "ACTION: '{}' played Number {}. '{}' drew {} cards.",
+            player.name(),
+            action.attachment(),
+            player.name(),
+            action.attachment()
+        );
     }
 
     fn handle_black_ace(&mut self) {
