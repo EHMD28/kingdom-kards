@@ -23,3 +23,4 @@
     - [X] server module
 - [X] Add tests for new Status type
 - [ ] Consolidate RequestType and ResponseType
+- [ ] Add action responses (Jack and Red Ace)

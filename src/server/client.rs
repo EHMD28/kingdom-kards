@@ -207,6 +207,7 @@ impl ClientInstance {
         }
     }
 
+    /// Requests current game state from server.
     fn get_game_state(&mut self) -> GameState {
         let handler = self.handler.as_mut().unwrap();
         let status = handler.send_request_await_response(GAME_STATE_REQUEST, GAME_STATE_RESPONSE);
@@ -237,7 +238,7 @@ impl ClientInstance {
         }
     }
 
-    /// Get action from server signifying the start of a player's turn.
+    /// Gets action from server signifying the start of a player's turn.
     /// If the turn player is this current player, this function returns true,
     /// else, it returns false.
     fn get_turn_start(handler: &mut StreamHandler) -> String {
@@ -262,6 +263,7 @@ impl ClientInstance {
         }
     }
 
+    /// Starts turn of client instance. Continues until turn end option is selected.
     fn start_my_turn(&mut self, game_state: &GameState) {
         /*
            1. Preform an action
@@ -272,14 +274,17 @@ impl ClientInstance {
         loop {
             if let Some(action) = self.player.get_action(game_state) {
                 self.send_action_to_server(&action);
-                if variant_eq(action.action_type(), &ActionType::TurnEnd) {
-                    break;
-                }
+            }
+            // If there is no action: end turn.
+            else {
+                self.send_action_to_server(&Action::new_turn_end(self.player.name()));
+                break;
             }
         }
         todo!()
     }
 
+    /// Sends action to server, printing any errors that may occur.
     fn send_action_to_server(&mut self, action: &Action) {
         let handler = self.handler.as_mut().unwrap();
         if let Err(err) = handler

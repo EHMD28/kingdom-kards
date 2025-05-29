@@ -21,7 +21,6 @@ pub struct Player {
 }
 
 impl Player {
-    #[allow(clippy::new_without_default)]
     pub fn new() -> Player {
         let mut player = Player {
             name: String::new(),
@@ -311,5 +310,11 @@ impl Player {
         println!("Player Name: {}", self.name);
         println!("Points: {}", self.points);
         self.print_hand();
+    }
+}
+
+impl Default for Player {
+    fn default() -> Self {
+        Player::new()
     }
 }

@@ -53,8 +53,6 @@ pub struct ServerInstance {
     listener: TcpListener,
     clients: Vec<Client>,
     current_client: usize,
-    // clients: Vec<StreamHandler>,
-    // players: Vec<PlayerDetails>,
     join_code: String,
 }
 
@@ -302,7 +300,7 @@ impl ServerInstance {
             ActionType::PlayNumber => self.handle_number(action),
             ActionType::PlayBlackAce => self.handle_black_ace(),
             ActionType::PlayRedAce => self.handle_red_ace(),
-            ActionType::TurnEnd | ActionType::TurnStart => unreachable!(),
+            ActionType::None | ActionType::TurnEnd | ActionType::TurnStart => unreachable!(),
         }
     }
 
@@ -319,10 +317,6 @@ impl ServerInstance {
             action.to_player(),
             to_player.points(),
         );
-        // self.response_all_except(
-        //     action.from_player(),
-        //     &Response::from_action(action.to_owned()),
-        // );
     }
 
     fn handle_queen(&mut self, action: &Action) {
@@ -339,10 +333,6 @@ impl ServerInstance {
             player.name(),
             player.points(),
         );
-        // self.response_all_except(
-        //     action.from_player(),
-        //     &Response::from_action(action.to_owned()),
-        // );
     }
 
     fn handle_jack(&mut self) {

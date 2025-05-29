@@ -45,14 +45,25 @@ impl FromStr for StatusType {
 
 #[derive(PartialEq, Debug)]
 pub enum ActionType {
+    /// Format: ACT,K,{ATTACHMENT},{FROM_PLAYER},{TO_PLAYER}
     PlayKing,
+    /// Format: ACT,Q,{ATTACHMENT},{FROM_PLAYER},{TO_PLAYER}
     PlayQueen,
+    /// Format: ACT,J,TODO,{FROM_PLAYER},{ORIGINAL_PLAYER}
+    /// `ORIGINAL_PLAYER` is the player who originally played the damaging card (e.g. K).
     PlayJack,
+    /// Format: ACT,N,{NUM_VALUE},{FROM_PLAYER},{NONE}
     PlayNumber,
+    /// Format: ACT,B,0,{FROM_PLAYER},{NONE}
     PlayBlackAce,
+    /// Format: ACT,R,{NUM_DAMAGE},{FROM_PLAYER},{NONE}
     PlayRedAce,
+    /// Format: ACT,S,0,{PLAYER},{NONE}
     TurnStart,
+    /// Format: ACT,E,0,{PLAYER},{NONE}
     TurnEnd,
+    /// FOrmat: ACT,X,0,{NONE},{NONE}
+    None,
 }
 
 impl ToOwned for ActionType {
@@ -68,6 +79,7 @@ impl ToOwned for ActionType {
             ActionType::PlayRedAce => ActionType::PlayRedAce,
             ActionType::TurnStart => ActionType::TurnStart,
             ActionType::TurnEnd => ActionType::TurnEnd,
+            ActionType::None => ActionType::None,
         }
     }
 }
@@ -85,6 +97,7 @@ impl ActionType {
             ActionType::PlayRedAce => "R",
             ActionType::TurnStart => "S",
             ActionType::TurnEnd => "E",
+            ActionType::None => "X",
         }
     }
 
@@ -100,6 +113,7 @@ impl ActionType {
             "R" => Some(ActionType::PlayRedAce),
             "S" => Some(ActionType::TurnStart),
             "E" => Some(ActionType::TurnEnd),
+            "X" => Some(ActionType::None),
             _ => None,
         }
     }
@@ -152,11 +166,20 @@ impl Action {
         }
     }
 
-    pub fn new_turn_start() -> Action {
+    pub fn new_turn_start(name: &str) -> Action {
         Action {
             action_type: ActionType::TurnStart,
             attachment: 0,
-            from_player: String::new(),
+            from_player: name.to_owned(),
+            to_player: String::new(),
+        }
+    }
+
+    pub fn new_turn_end(name: &str) -> Action {
+        Action {
+            action_type: ActionType::TurnEnd,
+            attachment: 0,
+            from_player: name.to_owned(),
             to_player: String::new(),
         }
     }
