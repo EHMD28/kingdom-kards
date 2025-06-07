@@ -1,26 +1,24 @@
-- [X] Add other actions
-- [X] Add server side name authentification
-    - [X] Recieving names
-    - [X] Validating name uniqueness
-    - [X] Handling name rejections client-side
-- [ ] Add server side game state
-- [ ] Add client side game state
-- [ ] Implement gameplay loop
-- [ ] Add join code generation 
-- [ ] Add error handling
-    - [X] Handling late connections
-    - [ ] Handling lost connections
-    - [ ] Simplify error handling
-- [X] Change code from multithreaded to holding every connection in a vector
-    - [X] Accept players
-    - [X] Respond to client
-- [X] Change from sending data as actions to using request/response
-    - [X] Determine format of requests/responses
-    - [ ] Formalize game loop
-    - [X] Remove actions
-- [X] Add rustdoc comments
-    - [ ] game module
-    - [X] server module
-- [X] Add tests for new Status type
-- [ ] Consolidate RequestType and ResponseType
-- [ ] Add action responses (Jack and Red Ace)
+# Game
+- None
+
+# Server
+- [ ] Handle lost connections
+- [ ] Implement game loop
+    - [ ] Start player's turn
+    - [ ] Change player's turn
+    - [ ] Keep track of game state
+    - [ ] **Handle reactions** (such as Jack and Red Ace)
+    - [ ] Handle winner/losers
+- [ ] Consolidate Errors to one type
+- [ ] Remove debugging code
+- [ ] Add `commentator` module for printing
+
+# TUI
+- [ ] Implement arrow controls instead of text input
+- [ ] Show cards when choosing
+- [ ] Show game state on request
+- [ ] Status bar?
+
+# GUI
+<!-- I think I want to use Tauri, but I need to do more research. -->
+- [ ] Add Tauri to project (either Svelte or plain HTML)
