@@ -147,6 +147,8 @@ impl Player {
         }
     }
 
+    /// Prompts the player to play a card in their hand or end their turn. Returns None if no
+    /// playable card is selected.
     pub fn get_action(&mut self, game_state: &GameState) -> Option<Action> {
         // Prompts the player to choose a card from their hand.
         if let Some(action_card) = self.choose_card() {

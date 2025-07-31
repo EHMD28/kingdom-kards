@@ -62,7 +62,9 @@ pub enum ActionType {
     TurnStart,
     /// Format: ACT,E,0,{PLAYER},{NONE}
     TurnEnd,
-    /// FOrmat: ACT,X,0,{NONE},{NONE}
+    /// Format: ACT,T,[0 or 1],{PLAYER},{NONE}
+    Status,
+    /// Format: ACT,X,0,{NONE},{NONE}
     None,
 }
 
@@ -80,6 +82,7 @@ impl ToOwned for ActionType {
             ActionType::TurnStart => ActionType::TurnStart,
             ActionType::TurnEnd => ActionType::TurnEnd,
             ActionType::None => ActionType::None,
+            ActionType::Status => ActionType::Status,
         }
     }
 }
@@ -98,6 +101,7 @@ impl ActionType {
             ActionType::TurnStart => "S",
             ActionType::TurnEnd => "E",
             ActionType::None => "X",
+            ActionType::Status => "T",
         }
     }
 
@@ -114,6 +118,7 @@ impl ActionType {
             "S" => Some(ActionType::TurnStart),
             "E" => Some(ActionType::TurnEnd),
             "X" => Some(ActionType::None),
+            "T" => Some(ActionType::Status),
             _ => None,
         }
     }
@@ -179,6 +184,15 @@ impl Action {
         Action {
             action_type: ActionType::TurnEnd,
             attachment: 0,
+            from_player: name.to_owned(),
+            to_player: String::new(),
+        }
+    }
+
+    pub fn new_status(name: &str, status: bool) -> Action {
+        Action {
+            action_type: ActionType::Status,
+            attachment: if status { 1 } else { 0 },
             from_player: name.to_owned(),
             to_player: String::new(),
         }

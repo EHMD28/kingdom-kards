@@ -2,7 +2,7 @@
 //! The GameState struct should only be used server side, and there should only
 //! be one instance of a GameState struct per server.
 
-use std::fmt::Display;
+use std::{cmp::max, fmt::Display};
 
 use crate::{server::constants::MAX_PLAYERS, ui::get_num_input};
 
@@ -99,6 +99,18 @@ impl GameState {
         self.print_all_players();
         let player_pos = get_num_input("Choose a player: ", 1, self.num_players() as i32);
         self.get_player((player_pos - 1) as usize)
+    }
+
+    pub fn subtract_points_from_player(&mut self, name: &str, num_points: u16) {
+        let player = self.player_by_name_mut(name).unwrap();
+        let points = max(0i16, player.points() as i16 - num_points as i16);
+        player.set_points(points as u16);
+    }
+
+    pub fn add_points_to_player(&mut self, name: &str, num_points: u16) {
+        let player = self.player_by_name_mut(name).unwrap();
+        let points = player.points() + num_points;
+        player.set_points(points);
     }
 
     pub fn player_by_name(&self, name: &str) -> Option<&PlayerDetails> {

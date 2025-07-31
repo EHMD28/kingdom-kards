@@ -31,10 +31,6 @@ impl Client {
         Client { handler, player }
     }
 
-    fn handler(&self) -> &StreamHandler {
-        &self.handler
-    }
-
     fn handler_mut(&mut self) -> &mut StreamHandler {
         &mut self.handler
     }
@@ -85,6 +81,11 @@ impl ServerInstance {
             .find(|c| c.player().name() == turn_player.name())
     }
 
+    fn turn_player_name(&self) -> &str {
+        let turn_player = self.game_state.current_player();
+        turn_player.name()
+    }
+
     /// Starts up server operations. First, the server accepts the number
     /// of players (between 2 and 6). Next, players will enter their usernames
     /// and the server will validate that the names are unique. After that, the
@@ -92,13 +93,13 @@ impl ServerInstance {
     pub fn start(&mut self) {
         // let num_players = get_num_input("Enter number of players (min. 2, max. 6): ", 2, 6);
         // TODO: change back to `num_players` for full application
-        self.accept_players(1);
+        self.accept_players(2);
         self.reject_extra_players();
         println!("Starting server with join code: {}", self.join_code);
         self.name_players();
         self.game_state.print_all_players();
+        // self.randomize_players();
         self.send_game_state();
-        self.randomize_players();
         self.start_game_loop();
     }
 
@@ -235,22 +236,38 @@ impl ServerInstance {
 
     /// Starts core gameplay loop.
     fn start_game_loop(&mut self) {
-        self.start_current_turn();
-        self.start_action_loop();
-        self.move_next_player();
-        todo!()
+        loop {
+            self.start_current_turn();
+            self.start_action_loop();
+            self.move_next_player();
+        }
+    }
+
+    fn send_to_all_except_turn_player(&mut self, res: &Response) {
+        let name = self.game_state.current_player().name();
+        for client in self.clients.iter_mut() {
+            if client.player().name() != name {
+                let handler = client.handler_mut();
+                if let Err(err) = handler.await_request_send_response(ACTION_REQUEST, res) {
+                    perror_in_fn("send_action_to_clients_except", err);
+                }
+            }
+        }
     }
 
     fn start_current_turn(&mut self) {
-        let turn_player = self.game_state.current_player().to_owned();
-        let client = self.client_by_name_mut(turn_player.name());
-        let response = Response::new_turn_start(turn_player.name().to_owned());
+        // let turn_player = self.game_state.current_player().to_owned();
+        let client = self.current_client_mut();
+        let client_name = client.player().name();
+        let response = Response::new_turn_start(client_name.to_owned());
+        println!("Starting {}'s turn", client_name);
         if let Err(err) = client
             .handler
             .await_request_send_response(ACTION_REQUEST, &response)
         {
             perror_in_fn("start_current_turn", err);
         }
+        self.send_to_all_except_turn_player(&response);
     }
 
     // fn response_all_except(&mut self, name: &str, response: &Response) {
@@ -285,9 +302,13 @@ impl ServerInstance {
         loop {
             let action = self.await_player_action();
             if variant_eq(action.action_type(), &ActionType::TurnEnd) {
+                let response = Response::from_action(action);
+                self.send_to_all_except_turn_player(&response);
                 break;
             } else {
                 self.handle_action(&action);
+                let response = Response::from_action(action);
+                self.send_to_all_except_turn_player(&response);
             }
         }
     }
@@ -300,14 +321,15 @@ impl ServerInstance {
             ActionType::PlayNumber => self.handle_number(action),
             ActionType::PlayBlackAce => self.handle_black_ace(),
             ActionType::PlayRedAce => self.handle_red_ace(),
-            ActionType::None | ActionType::TurnEnd | ActionType::TurnStart => unreachable!(),
+            _ => unreachable!(),
         }
     }
 
     fn handle_king(&mut self, action: &Action) {
-        let to_player = action.to_player();
+        let to_player_name = action.to_player();
+        // self.check_for_player_response(action.from_player(), to_player_name);
         let damage = 10 + action.attachment();
-        let to_player = self.game_state.player_by_name_mut(to_player).unwrap();
+        let to_player = self.game_state.player_by_name_mut(to_player_name).unwrap();
         to_player.set_points(to_player.points() - damage);
         println!(
             "ACTION: '{}' played King with {} against {}. '{}' now has {} points.",
@@ -317,6 +339,33 @@ impl ServerInstance {
             action.to_player(),
             to_player.points(),
         );
+    }
+
+    fn check_for_player_response(&mut self, from_player: &str, to_player: &str) -> Option<Action> {
+        let client = self.client_by_name_mut(to_player);
+        let handler = client.handler_mut();
+        let status = handler.send_request_await_response(ACTION_REQUEST, ACTION_RESPONSE);
+        match status {
+            Ok(response) => {
+                if let ResponseType::PlayerAction(Some(action)) = response.response_type() {
+                    match action.action_type() {
+                        ActionType::PlayJack => {
+                            return Some(Action::new(
+                                ActionType::PlayJack,
+                                0,
+                                to_player.to_owned(),
+                                from_player.to_owned(),
+                            ));
+                        }
+                        ActionType::PlayRedAce => todo!(),
+                        ActionType::None => return None,
+                        _ => unreachable!(),
+                    }
+                }
+            }
+            Err(err) => perror_in_fn("check_for_player_response", err),
+        }
+        None
     }
 
     fn handle_queen(&mut self, action: &Action) {
@@ -362,7 +411,12 @@ impl ServerInstance {
     }
 
     fn move_next_player(&mut self) {
+        println!("Ending {}'s turn", self.current_client().player().name());
         self.current_client = (self.current_client + 1) % self.clients.len();
+    }
+
+    fn current_client(&self) -> &Client {
+        &self.clients[self.current_client]
     }
 
     fn current_client_mut(&mut self) -> &mut Client {

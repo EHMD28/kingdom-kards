@@ -4,6 +4,7 @@
 # Server
 - [ ] Handle lost connections
 - [ ] Implement game loop
+    - [ ] Implement turn handling as state machine
     - [ ] Start player's turn
     - [ ] Change player's turn
     - [ ] Keep track of game state
@@ -11,7 +12,7 @@
     - [ ] Handle winner/losers
 - [ ] Consolidate Errors to one type
 - [ ] Remove debugging code
-- [ ] Add `commentator` module for printing
+- [X] Implement `commentator` module for printing
 
 # TUI
 - [ ] Implement arrow controls instead of text input

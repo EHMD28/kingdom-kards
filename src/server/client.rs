@@ -6,8 +6,9 @@ use std::net::TcpStream;
 use std::thread;
 use std::time::Duration;
 
-use crate::game::game_state::GameState;
+use crate::game::game_state::{self, GameState};
 use crate::game::player::Player;
+use crate::server::commentator::Commentator;
 use crate::server::response::{Response, ResponseType, StatusType};
 use crate::ui::get_input;
 use crate::utils::{perror_in_fn, variant_eq};
@@ -31,8 +32,10 @@ pub enum ClientError {
 pub struct ClientInstance {
     /// `StreamHandler` for `TcpStream` connect to server.
     handler: Option<StreamHandler>,
-    /// Name of current player.
+    /// Name of player.
     player: Player,
+    /// Name of turn player.
+    turn_player: String,
 }
 
 impl ClientInstance {
@@ -42,6 +45,7 @@ impl ClientInstance {
         ClientInstance {
             handler: None,
             player: Player::new(),
+            turn_player: String::new(),
         }
     }
 
@@ -66,12 +70,16 @@ impl ClientInstance {
                     println!("Room is full.");
                     break None;
                 }
-            } else if !ClientInstance::try_again() {
+            } else if !ClientInstance::try_connect_again() {
                 return None;
             } else {
                 thread::sleep(Duration::from_millis(500));
             }
         }
+    }
+
+    fn handler_mut(&mut self) -> &mut StreamHandler {
+        self.handler.as_mut().unwrap()
     }
 
     fn is_room_open(handler: &mut StreamHandler) -> bool {
@@ -89,7 +97,7 @@ impl ClientInstance {
         }
     }
 
-    fn try_again() -> bool {
+    fn try_connect_again() -> bool {
         println!("Failed to connect to server.");
         io::stdout().flush().expect("Unable to flush stdout");
 
@@ -115,10 +123,14 @@ impl ClientInstance {
     /// (i.e. `connect_to_server()`) was not called or it failed.
     pub fn start(&mut self) {
         self.choose_player_name();
-        let game_state = self.get_game_state();
+        let mut game_state = self.get_game_state_from_server();
         game_state.print_all_players();
-        self.start_game_loop(&game_state);
+        self.start_game_loop(&mut game_state);
     }
+
+    // fn get_handler(client: &mut ClientInstance) -> &mut StreamHandler {
+    //     client.handler.as_mut().unwrap()
+    // }
 
     /// This function is used to initiate communcation with the server so the
     /// player can choose a unique username.
@@ -134,8 +146,8 @@ impl ClientInstance {
         let mut name = String::new();
 
         while !is_accepted {
-            name = ClientInstance::send_name(handler);
-            is_accepted = ClientInstance::get_name_status(handler);
+            name = ClientInstance::send_name_to_server(handler);
+            is_accepted = ClientInstance::get_name_status_from_server(handler);
         }
         self.player.set_name(name);
         println!("Joined room as {}", self.player.name());
@@ -143,7 +155,7 @@ impl ClientInstance {
 
     /// Sends name request an awaits response, printing any errors that may
     /// occur.
-    fn send_name(handler: &mut StreamHandler) -> String {
+    fn send_name_to_server(handler: &mut StreamHandler) -> String {
         let name = ClientInstance::get_name_input();
         let name_response = Response::from_name(name.clone());
         if let Err(err) = handler.await_request_send_response(NAME_REQUEST, &name_response) {
@@ -160,7 +172,7 @@ impl ClientInstance {
     ///
     /// This function panics if it receives any invalid types, which should
     /// be impossible when using `send` and `await` functions.
-    fn get_name_status(handler: &mut StreamHandler) -> bool {
+    fn get_name_status_from_server(handler: &mut StreamHandler) -> bool {
         if let Err(err) = handler.send_request(STATUS_REQUEST) {
             perror_in_fn("get_name_status", err);
         }
@@ -208,7 +220,7 @@ impl ClientInstance {
     }
 
     /// Requests current game state from server.
-    fn get_game_state(&mut self) -> GameState {
+    fn get_game_state_from_server(&mut self) -> GameState {
         let handler = self.handler.as_mut().unwrap();
         let status = handler.send_request_await_response(GAME_STATE_REQUEST, GAME_STATE_RESPONSE);
         match status {
@@ -227,21 +239,23 @@ impl ClientInstance {
     }
 
     /// Starts core gameplay loop.
-    fn start_game_loop(&mut self, game_state: &GameState) {
-        let handler = self.handler.as_mut().unwrap();
-        let turn_player = ClientInstance::get_turn_start(handler);
-        println!("Staring {turn_player}'s Turn");
-        if turn_player == self.player.name() {
-            self.start_my_turn(game_state);
-        } else {
-            self.start_other_turn();
+    fn start_game_loop(&mut self, game_state: &mut GameState) {
+        loop {
+            let turn_player = self.get_turn_player_from_server();
+            println!("Staring {turn_player}'s Turn");
+            if turn_player == self.player.name() {
+                self.start_client_player_turn(game_state);
+            } else {
+                self.start_other_player_turn(game_state);
+            }
         }
     }
 
     /// Gets action from server signifying the start of a player's turn.
     /// If the turn player is this current player, this function returns true,
     /// else, it returns false.
-    fn get_turn_start(handler: &mut StreamHandler) -> String {
+    fn get_turn_player_from_server(&mut self) -> String {
+        let handler = self.handler.as_mut().unwrap();
         let status = handler.send_request_await_response(ACTION_REQUEST, ACTION_RESPONSE);
         match status {
             Ok(response) => {
@@ -263,39 +277,77 @@ impl ClientInstance {
         }
     }
 
-    /// Starts turn of client instance. Continues until turn end option is selected.
-    fn start_my_turn(&mut self, game_state: &GameState) {
-        /*
-           1. Preform an action
-           2. Inform server of action
-           3. Repeat 1-2 until turn end
-        */
-
+    fn start_client_player_turn(&mut self, game_state: &mut GameState) {
         loop {
             if let Some(action) = self.player.get_action(game_state) {
                 self.send_action_to_server(&action);
             }
-            // If there is no action: end turn.
+            // If there is no action, end turn.
             else {
                 self.send_action_to_server(&Action::new_turn_end(self.player.name()));
                 break;
             }
         }
-        todo!()
+    }
+
+    fn start_other_player_turn(&mut self, game_state: &mut GameState) {
+        let handler = self.handler_mut();
+        loop {
+            let status = handler.send_request_await_response(ACTION_REQUEST, ACTION_RESPONSE);
+            match status {
+                Ok(response) => {
+                    if let ResponseType::PlayerAction(Some(action)) = response.response_type() {
+                        if matches!(action.action_type(), ActionType::TurnEnd) {
+                            break;
+                        } else {
+                            ClientInstance::handle_other_player_action(action, handler, game_state);
+                        }
+                    } else {
+                        unreachable!()
+                    }
+                }
+                Err(err) => perror_in_fn("start_other_player_turn", err),
+            }
+        }
+    }
+
+    fn handle_other_player_action(
+        action: &Action,
+        handler: &mut StreamHandler,
+        game_state: &mut GameState,
+    ) {
+        match action.action_type() {
+            ActionType::PlayKing => {
+                let to_player = action.to_player();
+                let num_points = 10 + action.attachment();
+                game_state.subtract_points_from_player(to_player, num_points);
+                Commentator::play_king(action, game_state)
+            }
+            ActionType::PlayQueen => {
+                let to_player = action.to_player();
+                let num_points = 10 + action.attachment();
+                game_state.add_points_to_player(to_player, num_points);
+                Commentator::play_king(action, game_state)
+            }
+            ActionType::PlayJack => todo!(),
+            ActionType::PlayNumber => Commentator::play_number(action),
+            ActionType::PlayBlackAce => todo!(),
+            ActionType::PlayRedAce => todo!(),
+            ActionType::TurnStart => Commentator::turn_start(action.from_player()),
+            ActionType::TurnEnd => Commentator::turn_start(action.from_player()),
+            ActionType::Status => todo!(),
+            ActionType::None => todo!(),
+        }
     }
 
     /// Sends action to server, printing any errors that may occur.
     fn send_action_to_server(&mut self, action: &Action) {
-        let handler = self.handler.as_mut().unwrap();
+        let handler = self.handler_mut();
         if let Err(err) = handler
             .await_request_send_response(ACTION_REQUEST, &Response::from_action(action.to_owned()))
         {
             perror_in_fn("send_action_to_server", err);
         }
-    }
-
-    fn start_other_turn(&mut self) {
-        todo!()
     }
 
     /// This function is for testing purposes only. It blocks the main thread in an
