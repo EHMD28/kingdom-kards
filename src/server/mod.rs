@@ -61,16 +61,12 @@ impl fmt::Display for ServerError {
             ServerError::ExpectedResponseType(response_type) => {
                 write!(f, "Expected response of type {response_type}")
             }
-            ServerError::MismatchedRequestTypes(one, two) => write!(
-                f,
-                "Expected same request types.
-            Received {one} and {two}"
-            ),
-            ServerError::MismatchedResponseTypes(one, two) => write!(
-                f,
-                "Expected same response
-            types. Received {one} and {two}"
-            ),
+            ServerError::MismatchedRequestTypes(one, two) => {
+                write!(f, "Expected same request types. Received {one} and {two}")
+            }
+            ServerError::MismatchedResponseTypes(one, two) => {
+                write!(f, "Expected same response types. Received {one} and {two}")
+            }
         }
     }
 }
@@ -216,11 +212,7 @@ impl StreamHandler {
                 equiv_req.request_type().to_owned(),
             ));
         }
-        let status = self.await_request(request);
-        match status {
-            Ok(request) => request,
-            Err(err) => return Err(err),
-        };
+        self.await_request(request)?;
         if let Err(err) = self.send_response(response) {
             return Err(ServerError::IoError(err));
         }

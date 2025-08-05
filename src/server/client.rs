@@ -255,6 +255,7 @@ impl ClientInstance {
     /// If the turn player is this current player, this function returns true,
     /// else, it returns false.
     fn get_turn_player_from_server(&mut self) -> String {
+        println!("GETTING TURN PLAYER FROM SERVER.");
         let handler = self.handler.as_mut().unwrap();
         let status = handler.send_request_await_response(ACTION_REQUEST, ACTION_RESPONSE);
         match status {

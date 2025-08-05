@@ -7,7 +7,10 @@ use rand::{seq::SliceRandom, thread_rng};
 
 use crate::{
     game::game_state::{GameState, PlayerDetails},
-    server::constants::{STATUS_REQUEST, STATUS_RESPONSE_YES},
+    server::{
+        constants::{STATUS_REQUEST, STATUS_RESPONSE_YES},
+        print_internal_info,
+    },
     utils::{perror_in_fn, variant_eq},
 };
 
@@ -244,19 +247,31 @@ impl ServerInstance {
     }
 
     fn send_to_all_except_turn_player(&mut self, res: &Response) {
-        let name = self.game_state.current_player().name();
-        for client in self.clients.iter_mut() {
-            if client.player().name() != name {
-                let handler = client.handler_mut();
-                if let Err(err) = handler.await_request_send_response(ACTION_REQUEST, res) {
-                    perror_in_fn("send_action_to_clients_except", err);
+        for (index, client) in self.clients.iter_mut().enumerate() {
+            if index != self.current_client {
+                let client_name = client.player().name();
+                print_internal_info(&format!("SENDING RESPONSE TO {}", client_name));
+                if let Err(err) = client
+                    .handler
+                    .await_request_send_response(ACTION_REQUEST, res)
+                {
+                    perror_in_fn("send_to_all_except_turn_player", err);
                 }
             }
         }
+        // let name = self.game_state.current_player().name();
+        // for client in self.clients.iter_mut() {
+        //     if client.player().name() != name {
+        //         let handler = client.handler_mut();
+        //         println!("SENDING RESPONSE TO {name}");
+        //         if let Err(err) = handler.await_request_send_response(ACTION_REQUEST, res) {
+        //             perror_in_fn("send_action_to_clients_except", err);
+        //         }
+        //     }
+        // }
     }
 
     fn start_current_turn(&mut self) {
-        // let turn_player = self.game_state.current_player().to_owned();
         let client = self.current_client_mut();
         let client_name = client.player().name();
         let response = Response::new_turn_start(client_name.to_owned());
@@ -269,16 +284,6 @@ impl ServerInstance {
         }
         self.send_to_all_except_turn_player(&response);
     }
-
-    // fn response_all_except(&mut self, name: &str, response: &Response) {
-    //     for Client { handler, player } in self.clients.iter_mut() {
-    //         if player.as_ref().unwrap().name() != name {
-    //             if let Err(err) = handler.await_request_send_response(ACTION_REQUEST, response) {
-    //                 perror_in_fn("response_all", err);
-    //             }
-    //         }
-    //     }
-    // }
 
     fn await_player_action(&mut self) -> Action {
         let client = self.current_client_mut();
