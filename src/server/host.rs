@@ -97,7 +97,7 @@ impl ServerInstance {
     pub fn start(&mut self) {
         // let num_players = get_num_input("Enter number of players (min. 2, max. 6): ", 2, 6);
         // TODO: change back to `num_players` for full application
-        self.accept_players(1);
+        self.accept_players(2);
         self.reject_extra_players();
         println!("Starting server with join code: {}", self.join_code);
         self.name_players();
