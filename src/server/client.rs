@@ -330,10 +330,9 @@ impl ClientInstance {
                 game_state.add_points_to_player(to_player, num_points);
                 Commentator::play_king(action, game_state)
             }
-            ActionType::PlayJack => todo!(),
             ActionType::PlayNumber => Commentator::play_number(action),
-            ActionType::PlayBlackAce => todo!(),
-            ActionType::PlayRedAce => todo!(),
+            ActionType::PlayAce => todo!(),
+            ActionType::PlayJack => todo!(),
             ActionType::TurnStart => Commentator::turn_start(action.from_player()),
             ActionType::TurnEnd => Commentator::turn_start(action.from_player()),
             ActionType::Status => todo!(),

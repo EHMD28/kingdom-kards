@@ -160,6 +160,9 @@ impl Player {
             // If the card is a King or Queen, then the player is prompted to add an attachment.
             else if matches!(action_card.value(), Value::King | Value::Queen) {
                 Some(self.handle_king_queen(&action_card, game_state))
+            } else if matches!(action_card.value(), Value::Ace) {
+                // TODO: Implement ace card client-side.
+                todo!()
             } else {
                 None
             }

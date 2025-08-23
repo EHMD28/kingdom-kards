@@ -54,10 +54,12 @@ pub enum ActionType {
     PlayJack,
     /// Format: ACT,N,{NUM_VALUE},{FROM_PLAYER},{NONE}
     PlayNumber,
-    /// Format: ACT,B,0,{FROM_PLAYER},{NONE}
-    PlayBlackAce,
-    /// Format: ACT,R,{NUM_DAMAGE},{FROM_PLAYER},{NONE}
-    PlayRedAce,
+    /// Format: ACT,A,0,{FROM_PLAYER},{NONE}
+    PlayAce,
+    // /// Format: ACT,B,0,{FROM_PLAYER},{NONE}
+    // PlayBlackAce,
+    // /// Format: ACT,R,{NUM_DAMAGE},{FROM_PLAYER},{NONE}
+    // PlayRedAce,
     /// Format: ACT,S,0,{PLAYER},{NONE}
     TurnStart,
     /// Format: ACT,E,0,{PLAYER},{NONE}
@@ -77,12 +79,11 @@ impl ToOwned for ActionType {
             ActionType::PlayQueen => ActionType::PlayQueen,
             ActionType::PlayJack => ActionType::PlayJack,
             ActionType::PlayNumber => ActionType::PlayNumber,
-            ActionType::PlayBlackAce => ActionType::PlayBlackAce,
-            ActionType::PlayRedAce => ActionType::PlayRedAce,
             ActionType::TurnStart => ActionType::TurnStart,
             ActionType::TurnEnd => ActionType::TurnEnd,
             ActionType::None => ActionType::None,
             ActionType::Status => ActionType::Status,
+            ActionType::PlayAce => ActionType::PlayAce,
         }
     }
 }
@@ -96,8 +97,7 @@ impl ActionType {
             ActionType::PlayQueen => "Q",
             ActionType::PlayJack => "J",
             ActionType::PlayNumber => "N",
-            ActionType::PlayBlackAce => "B",
-            ActionType::PlayRedAce => "R",
+            ActionType::PlayAce => "A",
             ActionType::TurnStart => "S",
             ActionType::TurnEnd => "E",
             ActionType::None => "X",
@@ -113,8 +113,7 @@ impl ActionType {
             "Q" => Some(ActionType::PlayQueen),
             "J" => Some(ActionType::PlayJack),
             "N" => Some(ActionType::PlayNumber),
-            "B" => Some(ActionType::PlayBlackAce),
-            "R" => Some(ActionType::PlayRedAce),
+            "A" => Some(ActionType::PlayAce),
             "S" => Some(ActionType::TurnStart),
             "E" => Some(ActionType::TurnEnd),
             "X" => Some(ActionType::None),
@@ -125,10 +124,7 @@ impl ActionType {
 
     pub fn from_card(card: &Card) -> ActionType {
         match card.value() {
-            Value::Ace => match card.color() {
-                Color::Black => ActionType::PlayBlackAce,
-                Color::Red => ActionType::PlayRedAce,
-            },
+            Value::Ace => ActionType::PlayAce,
             Value::Two
             | Value::Three
             | Value::Four
@@ -601,26 +597,6 @@ fn parts_to_game_state(parts: &mut Split<&str>) -> Result<Response, ResponsePars
         Err(ResponseParseError::ExpectedNumPlayers)
     }
 }
-
-// fn parts_to_details(parts: &mut Split<&str>) -> Result<Response, ResponseParseError> {
-//     if let Some(name) = parts.next() {
-//         if let Some(points) = parts.next() {
-//             let points = points.parse::<u16>();
-//             if points.is_err() {
-//                 Err(ResponseParseError::ExpectedPoints)
-//             } else {
-//                 let points = points.unwrap();
-//                 Ok(Response::new(ResponseType::Details(Some(
-//                     PlayerDetails::new(name.to_string(), points),
-//                 ))))
-//             }
-//         } else {
-//             Err(ResponseParseError::ExpectedPoints)
-//         }
-//     } else {
-//         Err(ResponseParseError::ExpectedName)
-//     }
-// }
 
 impl Default for Response {
     fn default() -> Self {

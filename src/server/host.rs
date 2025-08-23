@@ -259,16 +259,6 @@ impl ServerInstance {
                 }
             }
         }
-        // let name = self.game_state.current_player().name();
-        // for client in self.clients.iter_mut() {
-        //     if client.player().name() != name {
-        //         let handler = client.handler_mut();
-        //         println!("SENDING RESPONSE TO {name}");
-        //         if let Err(err) = handler.await_request_send_response(ACTION_REQUEST, res) {
-        //             perror_in_fn("send_action_to_clients_except", err);
-        //         }
-        //     }
-        // }
     }
 
     fn start_current_turn(&mut self) {
@@ -324,8 +314,7 @@ impl ServerInstance {
             ActionType::PlayQueen => self.handle_queen(action),
             ActionType::PlayJack => self.handle_jack(),
             ActionType::PlayNumber => self.handle_number(action),
-            ActionType::PlayBlackAce => self.handle_black_ace(),
-            ActionType::PlayRedAce => self.handle_red_ace(),
+            ActionType::PlayAce => todo!(),
             _ => unreachable!(),
         }
     }
@@ -362,7 +351,6 @@ impl ServerInstance {
                                 from_player.to_owned(),
                             ));
                         }
-                        ActionType::PlayRedAce => todo!(),
                         ActionType::None => return None,
                         _ => unreachable!(),
                     }
@@ -405,14 +393,6 @@ impl ServerInstance {
             player.name(),
             action.attachment()
         );
-    }
-
-    fn handle_black_ace(&mut self) {
-        todo!()
-    }
-
-    fn handle_red_ace(&mut self) {
-        todo!()
     }
 
     fn move_next_player(&mut self) {
