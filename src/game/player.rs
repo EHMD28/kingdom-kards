@@ -17,7 +17,7 @@ pub struct Player {
     points: u16,
     hand: Vec<Card>,
     deck: Vec<Card>,
-    _discard_pile: Vec<Card>,
+    discard_pile: Vec<Card>,
 }
 
 impl Player {
@@ -26,7 +26,7 @@ impl Player {
             name: String::new(),
             hand: Vec::with_capacity(DECK_SIZE),
             deck: Vec::with_capacity(DECK_SIZE),
-            _discard_pile: Vec::with_capacity(DECK_SIZE),
+            discard_pile: Vec::with_capacity(DECK_SIZE),
             points: 100,
         };
 
@@ -42,7 +42,7 @@ impl Player {
             name,
             hand: Vec::with_capacity(DECK_SIZE),
             deck: Vec::with_capacity(DECK_SIZE),
-            _discard_pile: Vec::with_capacity(DECK_SIZE),
+            discard_pile: Vec::with_capacity(DECK_SIZE),
             points: 100,
         };
 
@@ -84,13 +84,10 @@ impl Player {
         todo!()
     }
 
-    // pub fn remove_card_in_hand(&mut self, n: usize) -> Option<()> {
-    //     todo!()
-    // }
-
     pub fn remove_card_from_hand(&mut self, card: &Card) -> Option<()> {
         if let Some(index) = self.hand.iter().position(|c| c == card) {
-            self.hand.remove(index);
+            let removed = self.hand.remove(index);
+            self.discard_pile.push(removed);
             Some(())
         } else {
             None
@@ -117,7 +114,9 @@ impl Player {
                 self.deck.push(Card::new(suit, value));
             }
         }
-        self.deck.push(Card::new(Suit::Hearts, Value::Seven));
+
+        self.deck.push(Card::new(Suit::Clubs, Value::Ace));
+        self.deck.push(Card::new(Suit::Diamonds, Value::Ace));
         self.deck.push(Card::new(Suit::Spades, Value::Five));
         self.deck.push(Card::new(Suit::Hearts, Value::Eight));
         self.deck.push(Card::new(Suit::Spades, Value::Two));
@@ -161,8 +160,7 @@ impl Player {
             else if matches!(action_card.value(), Value::King | Value::Queen) {
                 Some(self.handle_king_queen(&action_card, game_state))
             } else if matches!(action_card.value(), Value::Ace) {
-                // TODO: Implement ace card client-side.
-                todo!()
+                Some(self.handle_ace(&action_card))
             } else {
                 None
             }
@@ -195,6 +193,23 @@ impl Player {
             self.name.to_owned(),
             to_player.name().to_owned(),
         )
+    }
+
+    fn handle_ace(&mut self, action_card: &Card) -> Action {
+        self.play_ace(action_card);
+        Action::new(ActionType::PlayAce, 0, self.name.to_owned(), String::new())
+    }
+
+    fn play_ace(&mut self, card: &Card) {
+        self.print_discard_pile();
+        let chosen = get_num_input(
+            "Choose a card to add to your hand: ",
+            1,
+            self.discard_pile.len() as i32,
+        );
+        let chosen = self.discard_pile.remove((chosen - 1) as usize);
+        self.remove_card_from_hand(card);
+        self.hand.push(chosen);
     }
 
     fn play_number(&mut self, card: &Card) -> Option<()> {
@@ -301,6 +316,12 @@ impl Player {
 
     pub fn print_hand(&self) {
         for (i, card) in self.hand.iter().enumerate() {
+            println!("{}. {}", i + 1, card.to_colored_text());
+        }
+    }
+
+    pub fn print_discard_pile(&self) {
+        for (i, card) in self.discard_pile.iter().enumerate() {
             println!("{}. {}", i + 1, card.to_colored_text());
         }
     }

@@ -67,4 +67,11 @@ impl Commentator {
             action.attachment()
         );
     }
+
+    pub fn play_ace(action: &Action) {
+        println!(
+            "{} played an Ace, adding a card from their discard pile to their hand.",
+            action.from_player()
+        )
+    }
 }

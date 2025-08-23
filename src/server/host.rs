@@ -8,6 +8,7 @@ use rand::{seq::SliceRandom, thread_rng};
 use crate::{
     game::game_state::{GameState, PlayerDetails},
     server::{
+        commentator::Commentator,
         constants::{STATUS_REQUEST, STATUS_RESPONSE_YES},
         print_internal_info,
     },
@@ -96,7 +97,7 @@ impl ServerInstance {
     pub fn start(&mut self) {
         // let num_players = get_num_input("Enter number of players (min. 2, max. 6): ", 2, 6);
         // TODO: change back to `num_players` for full application
-        self.accept_players(2);
+        self.accept_players(1);
         self.reject_extra_players();
         println!("Starting server with join code: {}", self.join_code);
         self.name_players();
@@ -312,9 +313,9 @@ impl ServerInstance {
         match action.action_type() {
             ActionType::PlayKing => self.handle_king(action),
             ActionType::PlayQueen => self.handle_queen(action),
-            ActionType::PlayJack => self.handle_jack(),
+            ActionType::PlayJack => self.handle_jack(action),
             ActionType::PlayNumber => self.handle_number(action),
-            ActionType::PlayAce => todo!(),
+            ActionType::PlayAce => self.handle_ace(action),
             _ => unreachable!(),
         }
     }
@@ -325,40 +326,7 @@ impl ServerInstance {
         let damage = 10 + action.attachment();
         let to_player = self.game_state.player_by_name_mut(to_player_name).unwrap();
         to_player.set_points(to_player.points() - damage);
-        println!(
-            "ACTION: '{}' played King with {} against {}. '{}' now has {} points.",
-            action.from_player(),
-            action.attachment(),
-            action.to_player(),
-            action.to_player(),
-            to_player.points(),
-        );
-    }
-
-    fn check_for_player_response(&mut self, from_player: &str, to_player: &str) -> Option<Action> {
-        let client = self.client_by_name_mut(to_player);
-        let handler = client.handler_mut();
-        let status = handler.send_request_await_response(ACTION_REQUEST, ACTION_RESPONSE);
-        match status {
-            Ok(response) => {
-                if let ResponseType::PlayerAction(Some(action)) = response.response_type() {
-                    match action.action_type() {
-                        ActionType::PlayJack => {
-                            return Some(Action::new(
-                                ActionType::PlayJack,
-                                0,
-                                to_player.to_owned(),
-                                from_player.to_owned(),
-                            ));
-                        }
-                        ActionType::None => return None,
-                        _ => unreachable!(),
-                    }
-                }
-            }
-            Err(err) => perror_in_fn("check_for_player_response", err),
-        }
-        None
+        Commentator::play_king(action, self.game_state());
     }
 
     fn handle_queen(&mut self, action: &Action) {
@@ -368,16 +336,10 @@ impl ServerInstance {
             .unwrap();
         let healed_points = 10 + action.attachment();
         player.set_points(player.points() + healed_points);
-        println!(
-            "ACTION: '{}' played a Queen with {}. '{}' now has {}",
-            player.name(),
-            action.attachment(),
-            player.name(),
-            player.points(),
-        );
+        Commentator::play_queen(action, self.game_state());
     }
 
-    fn handle_jack(&mut self) {
+    fn handle_jack(&mut self, action: &Action) {
         todo!()
     }
 
@@ -393,6 +355,10 @@ impl ServerInstance {
             player.name(),
             action.attachment()
         );
+    }
+
+    fn handle_ace(&mut self, action: &Action) {
+        Commentator::play_ace(action);
     }
 
     fn move_next_player(&mut self) {
