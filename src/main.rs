@@ -1,3 +1,10 @@
+use crate::model::{Card, Suit, Value};
+
+mod client;
+mod model;
+mod server;
+
 fn main() {
-    println!("Hello, world!");
+    let card = Card::new(Suit::Spades, Value::Number(4));
+    println!("{card}");
 }
