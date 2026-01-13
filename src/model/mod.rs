@@ -106,17 +106,27 @@ impl fmt::Display for Card {
     }
 }
 
+/// Adds `cards()` and `cards_mut()` methods to a struct of the format StructName(Vec<Card>).
+macro_rules! impl_card_container {
+    ($struct_name:ident) => {
+        impl $struct_name {
+            /// Returns an immutable reference to the cards.
+            pub fn cards(&self) -> &Vec<Card> {
+                &self.0
+            }
+
+            /// Returns a mutable reference to the cards.
+            pub fn cards_mut(&mut self) -> &mut Vec<Card> {
+                &mut self.0
+            }
+        }
+    };
+}
+
 struct Deck(Vec<Card>);
+impl_card_container!(Deck);
 
 impl Deck {
-    pub fn cards(&self) -> &Vec<Card> {
-        &self.0
-    }
-
-    pub fn cards_mut(&mut self) -> &mut Vec<Card> {
-        &mut self.0
-    }
-
     /// Returns a standard, 52-card, shuffled playing card deck.
     fn shuffled() -> Deck {
         let cards = Vec::with_capacity(52);
@@ -151,11 +161,65 @@ impl Default for Deck {
     }
 }
 
+struct Hand(Vec<Card>);
+impl_card_container!(Hand);
+
+impl Hand {
+    fn draw_cards_from_deck(&mut self, deck: &mut Deck, num_times: u8) {
+        if deck.cards().len() < num_times.into() {
+            unimplemented!("Discard pile should be shuffled into deck")
+        } else {
+            for _ in 0..num_times {
+                let card = deck.cards_mut().pop().unwrap();
+                self.cards_mut().push(card);
+            }
+        }
+    }
+}
+
+impl Default for Hand {
+    fn default() -> Hand {
+        Hand(Vec::with_capacity(5))
+    }
+}
+
+struct DiscardPile(Vec<Card>);
+impl_card_container!(DiscardPile);
+
+impl Default for DiscardPile {
+    fn default() -> DiscardPile {
+        DiscardPile(Vec::with_capacity(52))
+    }
+}
+
+struct Player {
+    name: String,
+    points: u16,
+    deck: Deck,
+    hand: Hand,
+    discard_pile: DiscardPile,
+}
+
+impl Player {
+    fn new(name: &str) -> Player {
+        let mut deck = Deck::shuffled();
+        let mut hand = Hand::default();
+        hand.draw_cards_from_deck(&mut deck, 5);
+        Player {
+            name: name.to_owned(),
+            points: 100,
+            deck,
+            hand,
+            discard_pile: DiscardPile::default(),
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use std::collections::HashSet;
 
-    use crate::model::{Card, Deck, Suit, Value};
+    use crate::model::{Card, Deck, Player, Suit, Value};
 
     #[test]
     fn correct_deck_content() {
@@ -184,5 +248,15 @@ mod tests {
             Card::new(Suit::Diamonds, Value::King).to_string(),
             "King of Diamonds"
         );
+    }
+
+    #[test]
+    fn player_intialization() {
+        let player = Player::new("Alice");
+        assert_eq!(player.name, "Alice");
+        assert_eq!(player.points, 100);
+        assert_eq!(player.hand.cards().len(), 5);
+        assert_eq!(player.deck.cards().len(), 52 - player.hand.cards().len());
+        assert_eq!(player.discard_pile.cards().len(), 0);
     }
 }
