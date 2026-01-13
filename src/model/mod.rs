@@ -2,6 +2,7 @@ use std::fmt;
 
 use rand::seq::SliceRandom;
 
+/// The suit of a player card.
 #[derive(Clone)]
 pub enum Suit {
     Spades,
@@ -28,6 +29,7 @@ impl fmt::Display for Suit {
     }
 }
 
+/// The value of a playing card (ace, number, queen, etc.).
 #[derive(Clone)]
 pub enum Value {
     Ace,
@@ -81,27 +83,63 @@ impl fmt::Display for Value {
     }
 }
 
+/// Two possible colors of cards: red and black.
+enum Color {
+    Black,
+    Red,
+}
+
+impl Color {
+    /// Create a color from a suit.
+    fn from_suit(suit: &Suit) -> &Color {
+        match suit {
+            Suit::Spades | Suit::Clubs => &Color::Black,
+            Suit::Hearts | Suit::Diamonds => &Color::Red,
+        }
+    }
+}
+
+/// The struct for representing a playing card.
 pub struct Card {
     suit: Suit,
     value: Value,
 }
 
 impl Card {
+    /// Create a new card from `suit` and `value`.
     pub fn new(suit: Suit, value: Value) -> Card {
         Card { suit, value }
     }
 
-    fn suit(&self) -> &Suit {
+    /// Returns an immutable reference to this card's suit.
+    pub fn suit(&self) -> &Suit {
         &self.suit
     }
 
-    fn value(&self) -> &Value {
+    /// Returns an immutable reference to this card's value
+    pub fn value(&self) -> &Value {
         &self.value
+    }
+
+    pub fn as_colored_str(&self) -> String {
+        let color = Color::from_suit(self.suit());
+        let color = match color {
+            Color::Black => "\x1b[1;30m",
+            Color::Red => "\x1b[1;31m",
+        };
+        let reset_color = "\x1b[0m";
+        format!("{color}{} of {}{reset_color}", self.value(), self.suit())
     }
 }
 
 impl fmt::Display for Card {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let color = Color::from_suit(self.suit());
+        let color = match color {
+            Color::Black => "\x1b[1;30m",
+            Color::Red => "\x1b[1;30m",
+        };
+        let reset_color = "\x1b[0m";
         write!(f, "{} of {}", self.value(), self.suit())
     }
 }
@@ -123,12 +161,12 @@ macro_rules! impl_card_container {
     };
 }
 
-struct Deck(Vec<Card>);
+pub struct Deck(Vec<Card>);
 impl_card_container!(Deck);
 
 impl Deck {
     /// Returns a standard, 52-card, shuffled playing card deck.
-    fn shuffled() -> Deck {
+    pub fn shuffled() -> Deck {
         let cards = Vec::with_capacity(52);
         let mut deck = Deck(cards);
         deck.init_cards();
@@ -146,7 +184,7 @@ impl Deck {
         }
     }
 
-    fn shuffle(&mut self) {
+    pub fn shuffle(&mut self) {
         self.cards_mut().shuffle(&mut rand::rng());
     }
 }
@@ -161,7 +199,7 @@ impl Default for Deck {
     }
 }
 
-struct Hand(Vec<Card>);
+pub struct Hand(Vec<Card>);
 impl_card_container!(Hand);
 
 impl Hand {
@@ -183,7 +221,7 @@ impl Default for Hand {
     }
 }
 
-struct DiscardPile(Vec<Card>);
+pub struct DiscardPile(Vec<Card>);
 impl_card_container!(DiscardPile);
 
 impl Default for DiscardPile {
@@ -220,6 +258,10 @@ impl Player {
 
     pub fn points(&self) -> u16 {
         self.points
+    }
+
+    pub fn deck(&self) -> &Deck {
+        &self.deck
     }
 
     pub fn deck_size(&self) -> usize {
