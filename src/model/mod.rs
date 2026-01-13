@@ -192,7 +192,7 @@ impl Default for DiscardPile {
     }
 }
 
-struct Player {
+pub struct Player {
     name: String,
     points: u16,
     deck: Deck,
@@ -201,7 +201,7 @@ struct Player {
 }
 
 impl Player {
-    fn new(name: &str) -> Player {
+    pub fn new(name: &str) -> Player {
         let mut deck = Deck::shuffled();
         let mut hand = Hand::default();
         hand.draw_cards_from_deck(&mut deck, 5);
@@ -213,13 +213,52 @@ impl Player {
             discard_pile: DiscardPile::default(),
         }
     }
+
+    pub fn name(&self) -> &str {
+        &self.name
+    }
+
+    pub fn points(&self) -> u16 {
+        self.points
+    }
+
+    pub fn deck_size(&self) -> usize {
+        self.deck.cards().len()
+    }
+
+    pub fn hand_size(&self) -> usize {
+        self.hand.cards().len()
+    }
+
+    pub fn discard_pile_len(&self) -> usize {
+        self.discard_pile.cards().len()
+    }
+}
+
+#[derive(Default)]
+struct GameState {
+    players: Vec<Player>,
+    current_player: usize,
+}
+
+impl GameState {
+    pub fn from_players(players: Vec<Player>) -> GameState {
+        GameState {
+            players,
+            current_player: 0,
+        }
+    }
+
+    pub fn players(&self) -> &Vec<Player> {
+        &self.players
+    }
 }
 
 #[cfg(test)]
 mod tests {
-    use std::collections::HashSet;
+    use std::{collections::HashSet, iter::zip};
 
-    use crate::model::{Card, Deck, Player, Suit, Value};
+    use crate::model::{Card, Deck, GameState, Player, Suit, Value};
 
     #[test]
     fn correct_deck_content() {
@@ -255,8 +294,25 @@ mod tests {
         let player = Player::new("Alice");
         assert_eq!(player.name, "Alice");
         assert_eq!(player.points, 100);
-        assert_eq!(player.hand.cards().len(), 5);
-        assert_eq!(player.deck.cards().len(), 52 - player.hand.cards().len());
-        assert_eq!(player.discard_pile.cards().len(), 0);
+        assert_eq!(player.hand_size(), 5);
+        assert_eq!(player.deck_size(), 52 - player.hand_size());
+        assert_eq!(player.discard_pile_len(), 0);
+    }
+
+    #[test]
+    fn game_state_initalization() {
+        let player_names = ["Alice", "Bob", "Charlie"];
+        let players: Vec<Player> = player_names.iter().map(|name| Player::new(name)).collect();
+        let game_state = GameState::from_players(players);
+        let game_state_names: Vec<String> = game_state
+            .players
+            .iter()
+            .map(|player| player.name().to_owned())
+            .collect();
+        let names = zip(player_names, game_state_names);
+        for (p_name, gs_name) in names {
+            assert_eq!(p_name, gs_name);
+        }
+        assert_eq!(game_state.current_player, 0);
     }
 }

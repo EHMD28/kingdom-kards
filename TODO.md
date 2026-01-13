@@ -17,8 +17,8 @@
 
 - [x] Add type for representing cards.
 - [x] Add type for representing decks.
-- [ ] Add type for representing players.
-- [ ] Add type for representing game state.
+- [x] Add type for representing players.
+- [x] Add type for representing game state.
 
 # User Interface
 
