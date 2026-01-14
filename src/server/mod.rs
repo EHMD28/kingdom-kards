@@ -17,7 +17,7 @@ impl Server {
                 let mut stream = stream.unwrap();
                 let mut buffer = String::new();
                 stream.read_to_string(&mut buffer).unwrap();
-                stream.write_all(buffer.as_bytes()).unwrap();
+                println!("{buffer}");
             });
         }
         Ok(Server { listener })
