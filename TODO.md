@@ -2,7 +2,7 @@
 
 - [ ] Connect to specific port.
 - [ ] Receive data from server.
-- [ ] Send data to server.
+- [x] Send data to server.
 
 # Server
 
@@ -10,7 +10,7 @@
 - [ ] Accept TCP connections on LAN .
 - [ ] Accept multiple concurrent clients.
 - [ ] Handle multiple concurent clients.
-- [ ] Receive data from client.
+- [x] Receive data from client.
 - [ ] Send data to client.
 
 # Model
