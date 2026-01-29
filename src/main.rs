@@ -2,7 +2,11 @@ use std::io;
 
 use clap::Parser;
 
-use crate::{client::Client, server::Server};
+use crate::{
+    client::Client,
+    model::{Action, ActionType, Card, Suit, Value},
+    server::Server,
+};
 
 mod client;
 mod model;
@@ -14,13 +18,6 @@ enum BinaryType {
     Client,
     Server,
 }
-
-// #[derive(clap::ValueEnum, Clone)]
-// enum UiType {
-//     Cli,
-//     Tui,
-//     Gui,
-// }
 
 #[derive(clap::Parser)]
 struct CliArgs {
