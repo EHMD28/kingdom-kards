@@ -4,7 +4,6 @@ use clap::Parser;
 
 use crate::{
     client::Client,
-    model::{Action, ActionType, Card, Suit, Value},
     server::Server,
 };
 
