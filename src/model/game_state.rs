@@ -1,6 +1,8 @@
+use serde::{Deserialize, Serialize};
+
 use crate::model::player::Player;
 
-#[derive(Default)]
+#[derive(Default, Serialize, Deserialize)]
 pub struct GameState {
     players: Vec<Player>,
     current_player: usize,

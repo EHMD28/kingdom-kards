@@ -1,5 +1,8 @@
+use serde::{Deserialize, Serialize};
+
 use crate::model::card::{Deck, DiscardPile, Hand};
 
+#[derive(Serialize, Deserialize)]
 pub struct Player {
     name: String,
     points: u16,

@@ -163,6 +163,7 @@ macro_rules! impl_card_container {
     };
 }
 
+#[derive(Serialize, Deserialize)]
 pub struct Deck(Vec<Card>);
 
 impl_card_container!(Deck);
@@ -202,6 +203,7 @@ impl Default for Deck {
     }
 }
 
+#[derive(Serialize, Deserialize)]
 pub struct Hand(Vec<Card>);
 
 impl_card_container!(Hand);
@@ -225,6 +227,7 @@ impl Default for Hand {
     }
 }
 
+#[derive(Serialize, Deserialize)]
 pub struct DiscardPile(Vec<Card>);
 
 impl_card_container!(DiscardPile);

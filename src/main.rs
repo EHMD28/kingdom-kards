@@ -2,10 +2,7 @@ use std::io;
 
 use clap::Parser;
 
-use crate::{
-    client::Client,
-    server::Server,
-};
+use crate::{client::Client, server::Server};
 
 mod client;
 mod model;
@@ -27,10 +24,12 @@ fn main() -> io::Result<()> {
     let args = CliArgs::parse();
     match args.bin_type {
         BinaryType::Client => {
-            let _ = Client::create()?;
+            let mut client = Client::create()?;
+            client.start();
         }
         BinaryType::Server => {
-            let _ = Server::create()?;
+            let mut server = Server::create()?;
+            server.start();
         }
     };
     Ok(())
