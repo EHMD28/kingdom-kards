@@ -101,7 +101,7 @@ impl Color {
 }
 
 /// The struct for representing a playing card.
-#[derive(Serialize, Deserialize, PartialEq, Eq)]
+#[derive(Serialize, Deserialize, PartialEq, Eq, Clone)]
 pub struct Card {
     suit: Suit,
     value: Value,
@@ -163,7 +163,7 @@ macro_rules! impl_card_container {
     };
 }
 
-#[derive(Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, Clone)]
 pub struct Deck(Vec<Card>);
 
 impl_card_container!(Deck);
@@ -203,7 +203,7 @@ impl Default for Deck {
     }
 }
 
-#[derive(Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, Clone)]
 pub struct Hand(Vec<Card>);
 
 impl_card_container!(Hand);
@@ -227,7 +227,7 @@ impl Default for Hand {
     }
 }
 
-#[derive(Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, Clone)]
 pub struct DiscardPile(Vec<Card>);
 
 impl_card_container!(DiscardPile);
