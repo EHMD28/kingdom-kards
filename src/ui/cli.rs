@@ -1,5 +1,8 @@
 use std::io::{self, Write};
 
+use crate::utils::trim_newline;
+
+/// Returns the text the user entered with the newline removed.
 pub fn get_text_input(prompt: &str) -> io::Result<String> {
     let stdin = io::stdin();
     let mut stdout = io::stdout();
@@ -10,13 +13,4 @@ pub fn get_text_input(prompt: &str) -> io::Result<String> {
     stdin.read_line(&mut buffer)?;
     trim_newline(&mut buffer);
     Ok(buffer)
-}
-
-fn trim_newline(s: &mut String) {
-    if s.ends_with('\n') {
-        s.pop();
-        if s.ends_with('\r') {
-            s.pop();
-        }
-    }
 }

@@ -6,6 +6,7 @@ mod client;
 mod model;
 mod server;
 mod ui;
+mod utils;
 
 #[derive(clap::ValueEnum, Clone)]
 enum BinaryType {

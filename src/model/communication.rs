@@ -55,30 +55,35 @@ impl fmt::Display for Response {
     }
 }
 
-/// Wrapper around TcpStream to prevent data from being lost between reads.
+/// Wrapper around TcpStream to prevent data from being lost between reads/writes.
 pub struct StreamHandler {
     reader: BufReader<TcpStream>,
 }
 
 impl StreamHandler {
+    /// Creates a new `StreamHandler` from a `TcpStream`.
     pub fn new(stream: TcpStream) -> StreamHandler {
         StreamHandler {
             reader: BufReader::new(stream),
         }
     }
 
+    /// Sends a `Request` over the current stream.
     pub fn send_request(&mut self, request: &Request) -> io::Result<()> {
         let request = request.to_string();
         self.send(&request)?;
         Ok(())
     }
 
+    /// Sends a response over the current stream.
     pub fn send_response(&mut self, response: &Response) -> io::Result<()> {
         let response = response.to_string();
         self.send(&response)?;
         Ok(())
     }
 
+    /// Sends a response over the stream with a new line at the end. This new line should be
+    /// consumed.
     fn send(&mut self, buffer: &str) -> io::Result<()> {
         let stream = self.reader.get_mut();
         writeln!(stream, "{buffer}")?;
@@ -88,18 +93,23 @@ impl StreamHandler {
         Ok(())
     }
 
+    /// Blocks the current thread until a message is received. Attempts to parse message as request,
+    /// returning the request if successful.
     pub fn await_request(&mut self) -> io::Result<Request> {
         let buffer = self.await_str()?;
         let request = Request::from_str(&buffer).unwrap();
         Ok(request)
     }
 
+    /// Blocks the current thread until a message is received. Attempts to parse message as
+    /// response, returning the response if successful.
     pub fn await_response(&mut self) -> io::Result<Response> {
         let buffer = self.await_str()?;
         let request = Response::from_str(&buffer).unwrap();
         Ok(request)
     }
 
+    /// Blocks the current thread until a message is received.
     fn await_str(&mut self) -> io::Result<String> {
         let mut buffer = String::new();
         self.reader.read_line(&mut buffer)?;

@@ -19,29 +19,26 @@ use crate::model::{
 const MAX_PLAYERS: usize = 1;
 const IP_PORT: &str = "127.0.0.1:8080";
 
+/// Type for representing a server instance.
 pub struct Server {
     clients: HashMap<String, StreamHandler>,
     game_state: GameState,
-    sender: Sender<String>,
-    receiver: Receiver<String>,
 }
 
-/// This is a type alias to lessen code repetition.
+/// A type alias to lessen code repetition.
 type ServerType = Arc<Mutex<Server>>;
 
 impl Server {
-    /// Returns a new of instance of `Server` on port `127.0.0.1:8080`.
+    /// Returns a new of instance of `Server` with all fields intialized to the default value.
     pub fn create() -> io::Result<ServerType> {
-        let (sender, receiver) = channel::<String>();
         Ok(Arc::new(Mutex::new(Server {
             clients: HashMap::new(),
             game_state: GameState::default(),
-            sender,
-            receiver,
         })))
     }
 
-    /// Starts an instance of the server.
+    /// Starts an instance of server. Server is behind a mutex, which is why the method doesn't use
+    /// `&mut self`.
     pub fn start(server: &ServerType) -> io::Result<()> {
         println!("Started server");
         println!("Waiting for players to join.");
@@ -70,11 +67,13 @@ impl Server {
         for handler in handlers {
             handler.join().unwrap();
         }
-
         Ok(())
     }
 }
 
+/// Accept incoming TCP clients until it reaches the maximum. If a player has a unique name, the
+/// stream is added to the `server.clients` hash map and the client is also added as a player to
+/// `server.game_state`.
 fn handle_join(server: &ServerType, mut stream_handler: StreamHandler) -> io::Result<()> {
     let join_request = stream_handler.await_request()?;
     if let Request::Join(name) = join_request {
