@@ -4,7 +4,7 @@
 > I have decided that I am going to completely rewrite the code for this
 > project. I have made a lot of poor design decisions over the course of writing
 > this server, and the changes I want to make would result in a full codebase
-> re-write anyways.
+> re-write anyways. To see my current progress, look at the "development" branch.
 
 Kingdom Kards is a card game that can be played with a standard deck of playing 
 cards. You can find a full list of rules in [Rules.md](Rules.md)
