@@ -1,24 +1,44 @@
 use std::{
-    io::{self, Write},
+    io::{self, Read, Write},
     net::TcpStream,
-    time::SystemTime,
 };
 
-use crate::ui::cli::get_text_input;
+use crate::{
+    model::communication::{Request, Response, StreamHandler},
+    ui::cli::get_text_input,
+};
 
 pub struct Client {
-    stream: TcpStream,
+    stream_handler: StreamHandler,
 }
 
 impl Client {
+    // Creates a new client instance connected to the TCP port 127.0.0.1:8080.
     pub fn create() -> io::Result<Client> {
         let stream = TcpStream::connect("127.0.0.1:8080")?;
-        Ok(Client { stream })
+        Ok(Client {
+            stream_handler: StreamHandler::new(stream),
+        })
     }
 
-    pub fn start(&mut self) {
-        if let Ok(msg) = get_text_input("Enter your name: ") {
-            let _ = self.stream.write_all(msg.as_bytes());
+    /// Starts an instance of a client.
+    pub fn start(&mut self) -> io::Result<()> {
+        self.handle_join()?;
+        Ok(())
+    }
+
+    fn handle_join(&mut self) -> io::Result<()> {
+        let name = get_text_input("Enter your name: ")?;
+        let join_request = Request::Join(name);
+        self.stream_handler.send_request(&join_request)?;
+        let join_response = self.stream_handler.await_response()?;
+        match join_response {
+            // Client was accepted.
+            Response::Join(true) => println!("Joined the server."),
+            // Client was rejected because someone is already using that name.
+            Response::Join(false) => println!("Rejected by the server. Name is already in use"),
+            _ => unreachable!("Expected join response"),
         }
+        Ok(())
     }
 }

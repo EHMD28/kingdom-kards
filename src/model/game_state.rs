@@ -19,6 +19,14 @@ impl GameState {
     pub fn players(&self) -> &Vec<Player> {
         &self.players
     }
+
+    pub fn is_unique_name(&self, name: &str) -> bool {
+        !self.players.iter().any(|p| p.name() == name)
+    }
+
+    pub fn add_player(&mut self, player: Player) {
+        self.players.push(player);
+    }
 }
 
 #[cfg(test)]
