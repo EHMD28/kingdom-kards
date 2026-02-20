@@ -1,17 +1,17 @@
 # Client
 
 - [ ] Connect to specific port.
-- [ ] Receive data from server.
+- [x] Receive data from server.
 - [x] Send data to server.
 
 # Server
 
 <!-- For testing, I'm probably going to test using localhost. -->
 - [ ] Accept TCP connections on LAN .
-- [ ] Accept multiple concurrent clients.
+- [x] Accept multiple concurrent clients.
 - [ ] Handle multiple concurent clients.
 - [x] Receive data from client.
-- [ ] Send data to client.
+- [x] Send data to client.
 
 # Model
 
@@ -19,6 +19,14 @@
 - [x] Add type for representing decks.
 - [x] Add type for representing players.
 - [x] Add type for representing game state.
+
+# Game
+
+- [ ] Handle Kings
+- [ ] Handle Queens
+- [ ] Handle Jacks
+- [ ] Handle Aces
+- [ ] Handle Numbers
 
 # User Interface
 
