@@ -7,6 +7,7 @@ use std::{
         mpsc::{Receiver, Sender, channel},
     },
     thread::{self},
+    time::Duration,
 };
 
 use crate::model::{

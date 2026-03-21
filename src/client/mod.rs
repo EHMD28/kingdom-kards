@@ -1,6 +1,8 @@
 use std::{
     io::{self, Read, Write},
     net::TcpStream,
+    thread,
+    time::Duration,
 };
 
 use crate::{
@@ -42,5 +44,12 @@ impl Client {
             _ => unreachable!("Expected join response"),
         }
         Ok(())
+    }
+
+    pub fn _wait(&self) {
+        loop {
+            println!("Client is waiting");
+            thread::sleep(Duration::from_secs(1));
+        }
     }
 }

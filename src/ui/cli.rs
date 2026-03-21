@@ -1,4 +1,8 @@
-use std::io::{self, Write};
+use std::{
+    io::{self, Write},
+    thread,
+    time::Duration,
+};
 
 use crate::utils::trim_newline;
 
@@ -13,4 +17,18 @@ pub fn get_text_input(prompt: &str) -> io::Result<String> {
     stdin.read_line(&mut buffer)?;
     trim_newline(&mut buffer);
     Ok(buffer)
+}
+
+pub fn display_client_wait() {
+    loop {
+        println!("Client is waiting");
+        thread::sleep(Duration::from_secs(2));
+    }
+}
+
+pub fn display_server_wait() {
+    loop {
+        println!("Server is waiting.");
+        thread::sleep(Duration::from_secs(2));
+    }
 }

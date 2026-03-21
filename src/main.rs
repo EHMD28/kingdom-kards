@@ -1,4 +1,8 @@
-use crate::{client::Client, server::Server};
+use crate::{
+    client::Client,
+    server::Server,
+    ui::cli::{display_client_wait, display_server_wait},
+};
 use clap::Parser;
 use std::{io, thread, time::Duration};
 
@@ -25,14 +29,12 @@ fn main() -> io::Result<()> {
         BinaryType::Client => {
             let mut client = Client::create()?;
             client.start()?;
+            display_client_wait();
         }
         BinaryType::Server => {
             let server = Server::create()?;
             Server::start(&server)?;
-            loop {
-                println!("Server is waiting");
-                thread::sleep(Duration::from_secs(2));
-            }
+            display_server_wait();
         }
     };
     Ok(())
