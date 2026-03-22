@@ -1,17 +1,21 @@
 use std::{
-    io::{self, Read, Write},
+    io::{self},
     net::TcpStream,
     thread,
     time::Duration,
 };
 
 use crate::{
-    model::communication::{Request, Response, StreamHandler},
+    model::{
+        communication::{Request, Response, StreamHandler},
+        game_state::GameState,
+    },
     ui::cli::get_text_input,
 };
 
 pub struct Client {
     stream_handler: StreamHandler,
+    game_state: Option<GameState>,
 }
 
 impl Client {
@@ -20,12 +24,14 @@ impl Client {
         let stream = TcpStream::connect("127.0.0.1:8080")?;
         Ok(Client {
             stream_handler: StreamHandler::new(stream),
+            game_state: None,
         })
     }
 
     /// Starts an instance of a client.
-    pub fn start(&mut self) -> io::Result<()> {
-        self.handle_join()?;
+    pub fn start(client: &mut Client) -> io::Result<()> {
+        client.handle_join()?;
+        client.get_game_state_from_server()?;
         Ok(())
     }
 
@@ -42,6 +48,16 @@ impl Client {
             // Client was rejected because someone is already using that name.
             Response::Join(false) => println!("Rejected by the server. Name is already in use"),
             _ => unreachable!("Expected join response"),
+        }
+        Ok(())
+    }
+
+    fn get_game_state_from_server(&mut self) -> io::Result<()> {
+        self.stream_handler.send_request(&Request::GameState)?;
+        let response = self.stream_handler.await_response()?;
+        match response {
+            Response::GameState(game_state) => self.game_state = Some(game_state),
+            _ => unreachable!("Expected game state, receieved: {response}"),
         }
         Ok(())
     }

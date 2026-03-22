@@ -1,13 +1,9 @@
 use std::{
     collections::HashMap,
-    io::{self, Read, Write},
-    net::{TcpListener, TcpStream},
-    sync::{
-        Arc, Mutex,
-        mpsc::{Receiver, Sender, channel},
-    },
+    io::{self},
+    net::TcpListener,
+    sync::{Arc, Mutex},
     thread::{self},
-    time::Duration,
 };
 
 use crate::model::{
@@ -44,13 +40,14 @@ impl Server {
         println!("Started server");
         println!("Waiting for players to join.");
         Server::accept_clients(server)?;
+        Server::send_game_state_to_clients(server)?;
         Ok(())
     }
 
     /// Block the current thread until the correct number of clients join. Each client attempting to
     /// connect spawns a new thread.
     ///
-    /// TODO: Possibly refactor to accept num players as argument.
+    /// TODO: Refactor to accept num players as argument.
     fn accept_clients(server: &ServerType) -> io::Result<()> {
         let listener = TcpListener::bind(IP_PORT)?;
         let mut handlers = Vec::new();
@@ -59,7 +56,7 @@ impl Server {
             let (stream, _) = listener.accept()?;
             let stream_handler = StreamHandler::new(stream);
             let handler = thread::spawn(move || {
-                handle_join(&server_clone, stream_handler).unwrap();
+                Server::handle_join(&server_clone, stream_handler).unwrap();
             });
             handlers.push(handler);
         }
@@ -70,32 +67,50 @@ impl Server {
         }
         Ok(())
     }
-}
 
-/// Accept incoming TCP clients until it reaches the maximum. If a player has a unique name, the
-/// stream is added to the `server.clients` hash map and the client is also added as a player to
-/// `server.game_state`.
-fn handle_join(server: &ServerType, mut stream_handler: StreamHandler) -> io::Result<()> {
-    let join_request = stream_handler.await_request()?;
-    if let Request::Join(name) = join_request {
-        let mut server = server.lock().unwrap();
-        let response = if server.game_state.is_unique_name(&name) {
-            let new_player = Player::new(&name);
-            server.game_state.add_player(new_player);
-            println!("'{name}' joined the server");
-            Response::Join(true)
+    /// Accept incoming TCP clients until it reaches the maximum. If a player has a unique name, the
+    /// stream is added to the `server.clients` hash map and the client is also added as a player to
+    /// `server.game_state`.
+    fn handle_join(server: &ServerType, mut stream_handler: StreamHandler) -> io::Result<()> {
+        let join_request = stream_handler.await_request()?;
+        if let Request::Join(name) = join_request {
+            let mut server = server.lock().unwrap();
+            let response = if server.game_state.is_unique_name(&name) {
+                let new_player = Player::new(&name);
+                server.game_state.add_player(new_player);
+                println!("'{name}' joined the server");
+                Response::Join(true)
+            } else {
+                println!("The name '{name}' is already being used");
+                // If a player tries to join using a name that is already taken, then reject them.
+                Response::Join(false)
+            };
+            stream_handler.send_response(&response)?;
+            server
+                .clients
+                .entry(name.to_owned())
+                .or_insert(stream_handler);
+            Ok(())
         } else {
-            println!("The name '{name}' is already being used");
-            // If a player tries to join using a name that is already taken, then reject them.
-            Response::Join(false)
-        };
-        stream_handler.send_response(&response)?;
-        server
-            .clients
-            .entry(name.to_owned())
-            .or_insert(stream_handler);
+            unreachable!("Expected join request.")
+        }
+    }
+
+    fn send_game_state_to_clients(server: &ServerType) -> io::Result<()> {
+        let server = Arc::clone(server);
+        let game_state = &server.lock().unwrap().game_state;
+        let clients = &mut server.lock().unwrap().clients;
+        for (name, stream_handler) in clients.iter_mut() {
+            let request = stream_handler.await_request()?;
+            match request {
+                Request::GameState => {
+                    let response = Response::GameState(game_state.to_owned());
+                    stream_handler.send_response(&response)?;
+                    println!("Sent game state to {name}")
+                }
+                _ => unreachable!("Expected game state request, receieved {request}"),
+            }
+        }
         Ok(())
-    } else {
-        unreachable!("Expected join request.")
     }
 }

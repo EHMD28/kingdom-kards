@@ -4,7 +4,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::model::player::Player;
 
-#[derive(Default, Serialize, Deserialize)]
+#[derive(Default, Serialize, Deserialize, Clone)]
 pub struct GameState {
     /// A hashmap relating the name of the player to the player themselves.
     players: HashMap<String, Player>,

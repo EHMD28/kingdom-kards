@@ -137,11 +137,11 @@ impl Card {
 impl fmt::Display for Card {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let color = Color::from_suit(self.suit());
-        let color = match color {
+        let _color = match color {
             Color::Black => "\x1b[1;30m",
             Color::Red => "\x1b[1;30m",
         };
-        let reset_color = "\x1b[0m";
+        let _reset_color = "\x1b[0m";
         write!(f, "{} of {}", self.value(), self.suit())
     }
 }

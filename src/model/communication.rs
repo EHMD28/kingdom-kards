@@ -7,7 +7,10 @@ use std::{
 
 use serde::{Deserialize, Serialize};
 
-use crate::model::{action::Action, game_state::GameState};
+use crate::{
+    model::{action::Action, game_state::GameState},
+    utils::debugging::Debugging,
+};
 
 #[derive(Serialize, Deserialize)]
 pub enum Request {
@@ -72,6 +75,8 @@ impl StreamHandler {
     pub fn send_request(&mut self, request: &Request) -> io::Result<()> {
         let request = request.to_string();
         self.send(&request)?;
+        let dbg_msg = format!("Sent request: {request}");
+        Debugging::print_error(&dbg_msg);
         Ok(())
     }
 
@@ -79,6 +84,8 @@ impl StreamHandler {
     pub fn send_response(&mut self, response: &Response) -> io::Result<()> {
         let response = response.to_string();
         self.send(&response)?;
+        let dbg_msg = format!("Sent response: {response}");
+        Debugging::print_info(&dbg_msg);
         Ok(())
     }
 
@@ -96,17 +103,23 @@ impl StreamHandler {
     /// Blocks the current thread until a message is received. Attempts to parse message as request,
     /// returning the request if successful.
     pub fn await_request(&mut self) -> io::Result<Request> {
+        Debugging::print_info("Awaiting request");
         let buffer = self.await_str()?;
         let request = Request::from_str(&buffer).unwrap();
+        let dbg_msg = format!("Receieved: {request}");
+        Debugging::print_info(&dbg_msg);
         Ok(request)
     }
 
     /// Blocks the current thread until a message is received. Attempts to parse message as
     /// response, returning the response if successful.
     pub fn await_response(&mut self) -> io::Result<Response> {
+        Debugging::print_info("Awaiting response");
         let buffer = self.await_str()?;
-        let request = Response::from_str(&buffer).unwrap();
-        Ok(request)
+        let response = Response::from_str(&buffer).unwrap();
+        let dbg_msg = format!("Receieved: {response}");
+        Debugging::print_info(&dbg_msg);
+        Ok(response)
     }
 
     /// Blocks the current thread until a message is received.

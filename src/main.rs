@@ -4,7 +4,7 @@ use crate::{
     ui::cli::{display_client_wait, display_server_wait},
 };
 use clap::Parser;
-use std::{io, thread, time::Duration};
+use std::io;
 
 mod client;
 mod model;
@@ -28,7 +28,7 @@ fn main() -> io::Result<()> {
     match args.bin_type {
         BinaryType::Client => {
             let mut client = Client::create()?;
-            client.start()?;
+            Client::start(&mut client)?;
             display_client_wait();
         }
         BinaryType::Server => {
