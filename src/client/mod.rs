@@ -38,7 +38,8 @@ impl Client {
     /// Prompts the player to input their name. Then, it sends a join request to the server,
     /// printing the response from the server.
     fn handle_join(&mut self) -> io::Result<()> {
-        let name = get_text_input("Enter your name: ")?;
+        // let name = get_text_input("Enter your name: ")?;
+        let name = String::from("Alice");
         let join_request = Request::Join(name);
         self.stream_handler.send_request(&join_request)?;
         let join_response = self.stream_handler.await_response()?;

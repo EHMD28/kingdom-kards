@@ -1,3 +1,7 @@
+# General
+
+- [ ] Add proper error handling instead of just using `unwrap()`.
+
 # Client
 
 - [ ] Connect to specific port.

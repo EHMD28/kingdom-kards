@@ -1,15 +1,21 @@
 use std::{
+    clone,
     collections::HashMap,
     io::{self},
     net::TcpListener,
     sync::{Arc, Mutex},
-    thread::{self},
+    thread::{self, JoinHandle},
 };
 
-use crate::model::{
-    communication::{Request, Response, StreamHandler},
-    game_state::GameState,
-    player::Player,
+use serde_json::ser;
+
+use crate::{
+    model::{
+        communication::{Request, Response, StreamHandler},
+        game_state::{self, GameState},
+        player::Player,
+    },
+    utils::debugging::Debugging,
 };
 
 // Top-Level Constants
@@ -97,19 +103,26 @@ impl Server {
     }
 
     fn send_game_state_to_clients(server: &ServerType) -> io::Result<()> {
-        let server = Arc::clone(server);
-        let game_state = &server.lock().unwrap().game_state;
-        let clients = &mut server.lock().unwrap().clients;
-        for (name, stream_handler) in clients.iter_mut() {
-            let request = stream_handler.await_request()?;
-            match request {
-                Request::GameState => {
-                    let response = Response::GameState(game_state.to_owned());
-                    stream_handler.send_response(&response)?;
-                    println!("Sent game state to {name}")
+        let server_ref = server.lock().unwrap();
+        let game_state = server_ref.game_state.to_owned();
+        for (name, _) in server_ref.clients.iter() {
+            let server_clone = Arc::clone(server);
+            let name = name.to_owned();
+            let gs_clone = game_state.clone();
+            thread::spawn(move || {
+                let mut server_ref = server_clone.lock().unwrap();
+                let stream_handler = server_ref.clients.get_mut(&name).unwrap();
+                let gs_req = stream_handler.await_request().unwrap();
+                match gs_req {
+                    Request::GameState => {
+                        let gs_res = Response::GameState(gs_clone);
+                        stream_handler.send_response(&gs_res).unwrap();
+                    }
+                    _ => {
+                        unreachable!("Expected game state request. Receieved: {gs_req}")
+                    }
                 }
-                _ => unreachable!("Expected game state request, receieved {request}"),
-            }
+            });
         }
         Ok(())
     }
