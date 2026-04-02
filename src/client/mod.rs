@@ -11,6 +11,7 @@ use crate::{
         game_state::GameState,
     },
     ui::cli::get_text_input,
+    utils::debugging::Debugging,
 };
 
 pub struct Client {
@@ -45,10 +46,12 @@ impl Client {
         let join_response = self.stream_handler.await_response()?;
         match join_response {
             // Client was accepted.
-            Response::Join(true) => println!("Joined the server."),
+            Response::Join(true) => Debugging::print_info("Joined the server."),
             // Client was rejected because someone is already using that name.
-            Response::Join(false) => println!("Rejected by the server. Name is already in use"),
-            _ => unreachable!("Expected join response"),
+            Response::Join(false) => {
+                Debugging::print_info("Rejected by the server. Name is already in use")
+            }
+            _ => unreachable!("Expected join response. Receieved {join_response}"),
         }
         Ok(())
     }
@@ -65,7 +68,7 @@ impl Client {
 
     pub fn _wait(&self) {
         loop {
-            println!("Client is waiting");
+            Debugging::print_info("Client is waiting");
             thread::sleep(Duration::from_secs(1));
         }
     }

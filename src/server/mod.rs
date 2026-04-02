@@ -43,8 +43,8 @@ impl Server {
     /// Starts an instance of server. Server is behind a mutex, which is why the method doesn't use
     /// `&mut self`.
     pub fn start(server: &ServerType) -> io::Result<()> {
-        println!("Started server");
-        println!("Waiting for players to join.");
+        Debugging::print_info("Started server");
+        Debugging::print_info("Waiting for players to join.");
         Server::accept_clients(server)?;
         Server::send_game_state_to_clients(server)?;
         Ok(())
@@ -84,10 +84,12 @@ impl Server {
             let response = if server.game_state.is_unique_name(&name) {
                 let new_player = Player::new(&name);
                 server.game_state.add_player(new_player);
-                println!("'{name}' joined the server");
+                let dbg_msg = format!("'{name}' joined the server");
+                Debugging::print_info(&dbg_msg);
                 Response::Join(true)
             } else {
-                println!("The name '{name}' is already being used");
+                let dbg_msg = format!("The name '{name}' is already being used");
+                Debugging::print_info(&dbg_msg);
                 // If a player tries to join using a name that is already taken, then reject them.
                 Response::Join(false)
             };

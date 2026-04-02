@@ -4,7 +4,7 @@ use std::{
     time::Duration,
 };
 
-use crate::utils::trim_newline;
+use crate::utils::{debugging::Debugging, trim_newline};
 
 /// Returns the text the user entered with the newline removed.
 pub fn get_text_input(prompt: &str) -> io::Result<String> {
@@ -21,14 +21,14 @@ pub fn get_text_input(prompt: &str) -> io::Result<String> {
 
 pub fn display_client_wait() {
     loop {
-        println!("Client is waiting");
+        Debugging::print_info("Client is waiting");
         thread::sleep(Duration::from_secs(2));
     }
 }
 
 pub fn display_server_wait() {
     loop {
-        println!("Server is waiting.");
+        Debugging::print_info("Server is waiting.");
         thread::sleep(Duration::from_secs(2));
     }
 }
