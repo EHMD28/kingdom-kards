@@ -106,7 +106,7 @@ impl StreamHandler {
         Debugging::print_info("Awaiting request");
         let buffer = self.await_str()?;
         let request = Request::from_str(&buffer).unwrap();
-        let dbg_msg = format!("Receieved: {request}");
+        let dbg_msg = format!("Received: {request}");
         Debugging::print_info(&dbg_msg);
         Ok(request)
     }
@@ -117,7 +117,7 @@ impl StreamHandler {
         Debugging::print_info("Awaiting response");
         let buffer = self.await_str()?;
         let response = Response::from_str(&buffer).unwrap();
-        let dbg_msg = format!("Receieved: {response}");
+        let dbg_msg = format!("Received: {response}");
         Debugging::print_info(&dbg_msg);
         Ok(response)
     }

@@ -10,7 +10,6 @@ use crate::{
         communication::{Request, Response, StreamHandler},
         game_state::GameState,
     },
-    ui::cli::get_text_input,
     utils::debugging::Debugging,
 };
 
@@ -51,7 +50,7 @@ impl Client {
             Response::Join(false) => {
                 Debugging::print_info("Rejected by the server. Name is already in use")
             }
-            _ => unreachable!("Expected join response. Receieved {join_response}"),
+            _ => unreachable!("Expected join response. Received {join_response}"),
         }
         Ok(())
     }
@@ -61,7 +60,7 @@ impl Client {
         let response = self.stream_handler.await_response()?;
         match response {
             Response::GameState(game_state) => self.game_state = Some(game_state),
-            _ => unreachable!("Expected game state, receieved: {response}"),
+            _ => unreachable!("Expected game state, received: {response}"),
         }
         Ok(())
     }

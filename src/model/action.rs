@@ -113,7 +113,7 @@ mod tests {
         let deserialized: Action = serde_json::from_str(CHARLIE_SERIALIZED_STRING).unwrap();
         assert!(
             deserialized == charlie_action,
-            "Expected {}. Receieved {}",
+            "Expected {}. Received {}",
             charlie_action,
             deserialized
         )

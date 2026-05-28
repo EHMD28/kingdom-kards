@@ -7,8 +7,6 @@ use std::{
     thread::{self, JoinHandle},
 };
 
-use serde_json::ser;
-
 use crate::{
     model::{
         communication::{Request, Response, StreamHandler},
@@ -45,87 +43,98 @@ impl Server {
     pub fn start(server: &ServerType) -> io::Result<()> {
         Debugging::print_info("Started server");
         Debugging::print_info("Waiting for players to join.");
-        Server::accept_clients(server)?;
-        Server::send_game_state_to_clients(server)?;
+        accept_clients(server)?;
+        send_game_state_to_clients(server)?;
+        start_game_loop(server)?;
         Ok(())
     }
+}
 
-    /// Block the current thread until the correct number of clients join. Each client attempting to
-    /// connect spawns a new thread.
-    ///
-    /// TODO: Refactor to accept num players as argument.
-    fn accept_clients(server: &ServerType) -> io::Result<()> {
-        let listener = TcpListener::bind(IP_PORT)?;
-        let mut handlers = Vec::new();
-        for _ in 0..MAX_PLAYERS {
-            let server_clone = Arc::clone(server);
-            let (stream, _) = listener.accept()?;
-            let stream_handler = StreamHandler::new(stream);
-            let handler = thread::spawn(move || {
-                Server::handle_join(&server_clone, stream_handler).unwrap();
-            });
-            handlers.push(handler);
-        }
-        // Ensures that all of the client threads are finished executing before continuing the main
-        // thread.
-        for handler in handlers {
-            handler.join().unwrap();
-        }
-        Ok(())
+/// Block the current thread until the correct number of clients join. Each client attempting to
+/// connect spawns a new thread.
+///
+/// TODO: Refactor to accept num players as argument.
+fn accept_clients(server: &ServerType) -> io::Result<()> {
+    let listener = TcpListener::bind(IP_PORT)?;
+    let mut handlers = Vec::new();
+    for _ in 0..MAX_PLAYERS {
+        let server_clone = Arc::clone(server);
+        let (stream, _) = listener.accept()?;
+        let stream_handler = StreamHandler::new(stream);
+        let handler = thread::spawn(move || {
+            handle_join(&server_clone, stream_handler).unwrap();
+        });
+        handlers.push(handler);
     }
+    // Ensures that all of the client threads are finished executing before continuing the main
+    // thread.
+    for handler in handlers {
+        handler.join().unwrap();
+    }
+    Ok(())
+}
 
-    /// Accept incoming TCP clients until it reaches the maximum. If a player has a unique name, the
-    /// stream is added to the `server.clients` hash map and the client is also added as a player to
-    /// `server.game_state`.
-    fn handle_join(server: &ServerType, mut stream_handler: StreamHandler) -> io::Result<()> {
-        let join_request = stream_handler.await_request()?;
-        if let Request::Join(name) = join_request {
-            let mut server = server.lock().unwrap();
-            let response = if server.game_state.is_unique_name(&name) {
-                let new_player = Player::new(&name);
-                server.game_state.add_player(new_player);
-                let dbg_msg = format!("'{name}' joined the server");
-                Debugging::print_info(&dbg_msg);
-                Response::Join(true)
-            } else {
-                let dbg_msg = format!("The name '{name}' is already being used");
-                Debugging::print_info(&dbg_msg);
-                // If a player tries to join using a name that is already taken, then reject them.
-                Response::Join(false)
-            };
-            stream_handler.send_response(&response)?;
-            server
-                .clients
-                .entry(name.to_owned())
-                .or_insert(stream_handler);
-            Ok(())
+/// Accept incoming TCP clients until it reaches the maximum. If a player has a unique name, the
+/// stream is added to the `server.clients` hash map and the client is also added as a player to
+/// `server.game_state`.
+fn handle_join(server: &ServerType, mut stream_handler: StreamHandler) -> io::Result<()> {
+    let join_request = stream_handler.await_request()?;
+    if let Request::Join(name) = join_request {
+        let mut server = server.lock().unwrap();
+        let response = if server.game_state.is_unique_name(&name) {
+            let new_player = Player::new(&name);
+            server.game_state.add_player(new_player);
+            let dbg_msg = format!("'{name}' joined the server");
+            Debugging::print_info(&dbg_msg);
+            Response::Join(true)
         } else {
-            unreachable!("Expected join request.")
-        }
-    }
-
-    fn send_game_state_to_clients(server: &ServerType) -> io::Result<()> {
-        let server_ref = server.lock().unwrap();
-        let game_state = server_ref.game_state.to_owned();
-        for (name, _) in server_ref.clients.iter() {
-            let server_clone = Arc::clone(server);
-            let name = name.to_owned();
-            let gs_clone = game_state.clone();
-            thread::spawn(move || {
-                let mut server_ref = server_clone.lock().unwrap();
-                let stream_handler = server_ref.clients.get_mut(&name).unwrap();
-                let gs_req = stream_handler.await_request().unwrap();
-                match gs_req {
-                    Request::GameState => {
-                        let gs_res = Response::GameState(gs_clone);
-                        stream_handler.send_response(&gs_res).unwrap();
-                    }
-                    _ => {
-                        unreachable!("Expected game state request. Receieved: {gs_req}")
-                    }
-                }
-            });
-        }
+            let dbg_msg = format!("The name '{name}' is already being used");
+            Debugging::print_info(&dbg_msg);
+            // If a player tries to join using a name that is already taken, then reject them.
+            Response::Join(false)
+        };
+        stream_handler.send_response(&response)?;
+        server
+            .clients
+            .entry(name.to_owned())
+            .or_insert(stream_handler);
         Ok(())
+    } else {
+        unreachable!("Expected join request.")
     }
+}
+
+fn initialize_game_state(server: &ServerType) {
+    let server_ref = server.lock().unwrap();
+}
+
+fn send_game_state_to_clients(server: &ServerType) -> io::Result<()> {
+    let server_ref = server.lock().unwrap();
+    let game_state = server_ref.game_state.to_owned();
+    for (name, _) in server_ref.clients.iter() {
+        let server_clone = Arc::clone(server);
+        let name = name.to_owned();
+        let gs_clone = game_state.clone();
+        thread::spawn(move || {
+            let mut server_ref = server_clone.lock().unwrap();
+            let stream_handler = server_ref.clients.get_mut(&name).unwrap();
+            let gs_req = stream_handler.await_request().unwrap();
+            match gs_req {
+                Request::GameState => {
+                    let gs_res = Response::GameState(gs_clone);
+                    stream_handler.send_response(&gs_res).unwrap();
+                }
+                _ => {
+                    unreachable!("Expected game state request. Received: {gs_req}")
+                }
+            }
+        });
+    }
+    Ok(())
+}
+
+fn start_game_loop(server: &ServerType) -> io::Result<()> {
+    let server_ref = server.lock().unwrap();
+    for (name, handler) in server_ref.clients.iter() {}
+    Ok(())
 }

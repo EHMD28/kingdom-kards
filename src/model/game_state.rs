@@ -1,5 +1,6 @@
 use std::collections::HashMap;
 
+use rand::seq::SliceRandom;
 use serde::{Deserialize, Serialize};
 
 use crate::model::player::Player;
@@ -8,30 +9,34 @@ use crate::model::player::Player;
 pub struct GameState {
     /// A hashmap relating the name of the player to the player themselves.
     players: HashMap<String, Player>,
+    /// A vector containing the names of the players in the proper order.
+    player_order: Vec<String>,
     /// The name of the current player.
-    current_player: String,
+    current_player: usize,
 }
 
 impl GameState {
     /// Creates a new game state from `players`. The first player is whoever is the first player in
     /// `players`.
-    pub fn from_players(players: Vec<Player>) -> GameState {
-        let first_player_name = players.first().unwrap().name().to_owned();
+    fn from_players(players: Vec<Player>) -> GameState {
         let mut hashmap: HashMap<String, Player> = HashMap::new();
         for player in players {
             hashmap.insert(player.name().to_owned(), player);
         }
+        let mut player_names: Vec<String> = hashmap.keys().map(|k| k.to_owned()).collect();
+        player_names.shuffle(&mut rand::rng());
         GameState {
             players: hashmap,
-            current_player: first_player_name,
+            player_order: player_names,
+            current_player: 0,
         }
     }
 
-    /// Creates a `Vec` containing each player. This involves cloning all of the values, so avoid
-    /// calling this method often.
-    pub fn players(&self) -> Vec<Player> {
-        self.players.values().cloned().collect()
-    }
+    // /// Creates a `Vec` containing each player. This involves cloning all of the values, so avoid
+    // /// calling this method often.
+    // pub fn players(&self) -> Vec<Player> {
+    //     self.players.values().cloned().collect()
+    // }
 
     /// Checks to see if the name is unique.
     pub fn is_unique_name(&self, name: &str) -> bool {
@@ -42,6 +47,8 @@ impl GameState {
     pub fn add_player(&mut self, player: Player) {
         self.players.insert(player.name().to_owned(), player);
     }
+
+    pub fn randomize_players(&mut self) {}
 }
 
 #[cfg(test)]
@@ -61,6 +68,6 @@ mod tests {
         for p_name in player_names {
             assert!(game_state.players.contains_key(p_name))
         }
-        assert_eq!(game_state.current_player, "Alice");
+        assert_eq!(game_state.player_order.first().unwrap(), "Alice");
     }
 }
